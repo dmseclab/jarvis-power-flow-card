@@ -16,6 +16,9 @@ jobs:
         run: |
           node --check src/jarvis-power-flow-card.js
           node --check dist/jarvis-power-flow-card.js
+          node --check preview/jarvis-power-flow-preview.js
+      - name: HUD smoke tests
+        run: node tests/smoke.cjs
       - name: Verify installable file matches source
         run: cmp src/jarvis-power-flow-card.js dist/jarvis-power-flow-card.js
       - name: Check HACS metadata
