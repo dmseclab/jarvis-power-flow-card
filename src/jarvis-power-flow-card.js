@@ -54,6 +54,47 @@ class JarvisPowerFlowCard extends HTMLElement {
     const s=this.entity(key);
     return s && !["unknown","unavailable"].includes(String(s.state).toLowerCase()) ? String(s.state) : "Unavailable";
   }
+  // Reconcile DOM nodes in place: animated SVG paths keep their animation timelines
+  // across frequent Home Assistant state updates.
+  reconcileNode(current, incoming) {
+    if (current.nodeType !== incoming.nodeType || current.nodeName !== incoming.nodeName) {
+      current.replaceWith(incoming.cloneNode(true));
+      return;
+    }
+    if (current.nodeType === 3 || current.nodeType === 8) {
+      if (current.nodeValue !== incoming.nodeValue) current.nodeValue = incoming.nodeValue;
+      return;
+    }
+    if (current.nodeType !== 1) return;
+    for (const attr of [...current.attributes]) {
+      if (!incoming.hasAttribute(attr.name)) current.removeAttribute(attr.name);
+    }
+    for (const attr of [...incoming.attributes]) {
+      if (current.getAttribute(attr.name) !== attr.value) current.setAttribute(attr.name, attr.value);
+    }
+    this.reconcileChildren(current, incoming);
+  }
+  reconcileChildren(current, incoming) {
+    let index=0;
+    while (index < incoming.childNodes.length) {
+      const fresh=incoming.childNodes[index];
+      const existing=current.childNodes[index];
+      if (!existing) current.appendChild(fresh.cloneNode(true));
+      else this.reconcileNode(existing, fresh);
+      index++;
+    }
+    while (current.childNodes.length > incoming.childNodes.length) current.lastChild.remove();
+  }
+  applyMarkup(html) {
+    // Initial load and headless smoke tests use a direct assignment.
+    if (!this.shadowRoot.firstChild || typeof document==="undefined") {
+      this.shadowRoot.innerHTML=html;
+      return;
+    }
+    const template=document.createElement("template");
+    template.innerHTML=html;
+    this.reconcileChildren(this.shadowRoot,template.content);
+  }
   render() {
     if (!this.cfg || !this.shadowRoot) return;
     const a=this.power("pv1_power"), b=this.power("pv2_power"), home=this.power("load_power");
@@ -84,7 +125,7 @@ class JarvisPowerFlowCard extends HTMLElement {
     const gridReverse=gridSign===true?grid<0:grid>0;
     const battReverse=batterySign===true?battery>0:battery<0;
     const isAvailable=this.status("inverter_status")!=="Unavailable";
-    this.shadowRoot.innerHTML='<style>'+
+    const markup='<style>'+
       ':host{display:block;width:100%;min-width:0;box-sizing:border-box;color:#e7f9ff;font-family:Arial,Roboto,sans-serif}'+
       '*,*::before,*::after{box-sizing:border-box}ha-card{display:block;min-width:0;width:100%;overflow:hidden;position:relative;border:1px solid #20c9ec;border-radius:17px;'+
       'background:radial-gradient(ellipse at 53% 22%,#103754 0%,#061c2d 53%,#030b17 100%);box-shadow:inset 0 0 32px #21d8ff11,0 0 18px #0abef21e}'+
@@ -159,6 +200,7 @@ class JarvisPowerFlowCard extends HTMLElement {
       'Battery current '+fmt(current===null?'—':current.toFixed(1)+' A')+
       ' · Grid/battery direction '+(gridVerified&&batteryVerified?'configured':'requires validation')+
       '</span></div></div></ha-card>';
+    this.applyMarkup(markup);
   }
 }
 if (!customElements.get("jarvis-power-flow-card")) customElements.define("jarvis-power-flow-card",JarvisPowerFlowCard);
