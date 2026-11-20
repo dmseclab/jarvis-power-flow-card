@@ -294,9 +294,9 @@ class JarvisPowerFlowCard extends HTMLElement {
         '<div class="diagnostic"><span>House demand</span><b>'+fmt(this.powerText(home))+'</b></div>'+
         '<div class="diagnostic"><span>Inverter status</span><b>'+fmt(this.status('inverter_status'))+'</b></div>'+
         '<div class="diagnostic"><span>Battery flow</span><b>'+fmt(battLabel)+'</b></div>'+
-        '<div class="diagnostic"><span>Grid flow</span><b>'+fmt(gridLabel)+'</b></div>
-        '<div class="diagnostic"><span>Operating mode</span><b>'+fmt(mode.name)+'</b></div>
-        '<div class="diagnostic"><span>Sensor quality</span><b>'+fmt(quality.label)+'</b></div>''+
+        '<div class="diagnostic"><span>Grid flow</span><b>'+fmt(gridLabel)+'</b></div>'+
+        '<div class="diagnostic"><span>Operating mode</span><b>'+fmt(mode.name)+'</b></div>'+
+        '<div class="diagnostic"><span>Sensor quality</span><b>'+fmt(quality.label)+'</b></div>'+
         '<div class="diagnostic"><span>Daily consumption</span><b>'+fmt(this.energy('day_load_energy'))+'</b></div>')+
       '</div><div class="metrics">'+
       metric("SOLAR TODAY",this.energy("day_pv_energy"),"#f8c54a")+
