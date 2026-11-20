@@ -87,4 +87,14 @@ assert.equal(flows.grid,'unverified');
 assert.equal(flows.gridEnabled,false);
 assert.equal(flows.battery,'discharging');
 assert.ok(card.shadowRoot.innerHTML.includes('02 / HOUSE LOAD'),'house panel expanded');
+// Full cinematic command-centre panels should render only measured data.
+const rich=card.shadowRoot.innerHTML;
+for(const heading of ['BATTERY INTELLIGENCE','SOLAR INTELLIGENCE','GRID MANAGEMENT','HOME &amp; DIAGNOSTICS','ENERGY INTELLIGENCE / LIVE SYSTEM MODULES']){
+  assert.ok(rich.includes(heading), 'missing cinematic module: '+heading);
+}
+assert.ok(rich.includes('charge-dial'), 'live SOC instrument should render');
+assert.ok(rich.includes('PV STRING 1'), 'PV diagnostics should render');
+assert.ok(rich.includes('GRID CT POWER'), 'grid telemetry should render');
+assert.ok(rich.includes('Daily consumption'), 'house telemetry should render');
+assert.ok(!rich.includes('NaN'), 'rich panels must not fabricate numeric values');
 console.log('JARVIS smoke test passed');
