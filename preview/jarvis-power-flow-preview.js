@@ -82,7 +82,7 @@ class JarvisPowerFlowPreview extends HTMLElement {
     const gridOn=gridVerified&&grid!==null&&Math.abs(grid)>threshold;
     const battOn=batteryVerified&&battery!==null&&Math.abs(battery)>threshold;
     const gridReverse=gridSign===true?grid<0:grid>0;
-    const battReverse=batterySign===true?battery<0:battery>0;
+    const battReverse=batterySign===true?battery>0:battery<0;
     const isAvailable=this.status("inverter_status")!=="Unavailable";
     this.shadowRoot.innerHTML='<style>'+
       ':host{display:block;width:100%;min-width:0;box-sizing:border-box;color:#e7f9ff;font-family:Arial,Roboto,sans-serif}'+
