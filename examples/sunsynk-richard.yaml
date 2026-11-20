@@ -1,0 +1,18 @@
+type: custom:jarvis-power-flow-card
+title: J.A.R.V.I.S. / ENERGY COMMAND
+minimum_flow_w: 40
+# Sign conventions must be verified before enabling battery animation.
+entities:
+  pv1_power: sensor.ss_pv1_power
+  pv2_power: sensor.ss_pv2_power
+  inverter_status: sensor.ss_overall_state
+  load_power: sensor.ss_load_power
+  battery_soc: sensor.ss_battery_soc
+  battery_power: sensor.ss_battery_power
+  battery_voltage: sensor.ss_battery_voltage
+  battery_current: sensor.ss_battery_current
+  grid_power: sensor.ss_grid_ct_power
+  day_pv_energy: sensor.ss_day_pv_energy
+  day_load_energy: sensor.ss_day_load_energy
+  day_grid_import: sensor.ss_day_grid_import
+  day_grid_export: sensor.ss_day_grid_export
