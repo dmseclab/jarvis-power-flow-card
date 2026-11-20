@@ -12,6 +12,8 @@ type: custom:jarvis-power-flow-preview
 title: J.A.R.V.I.S.
 subtitle: SMART ENERGY COMMAND CENTRE
 minimum_flow_w: 40
+# Positive battery power confirmed as discharge in this installation.
+battery_positive_is_discharge: true
 entities:
   pv1_power: sensor.ss_pv1_power
   pv2_power: sensor.ss_pv2_power
@@ -29,7 +31,7 @@ entities:
 ```
 
 5. Compare v0.2 with the installed JARVIS v0.1 and working Sunsynk diagram: load power, grid CT, SOC, PV, daily totals, unknown sensor behavior, right-side clipping and mobile layout.
-6. Keep `grid_positive_is_import` and `battery_positive_is_discharge` unset until real sign conventions are confirmed.
+6. The observed +6.85 kW battery power / +132.7 A condition was confirmed by the operator as discharging into the home. Set `battery_positive_is_discharge: true` in the preview YAML. Grid import/export polarity remains unverified, so leave `grid_positive_is_import` unset.
 
 **After acceptance:** remove the preview card, delete its manual resource and preview file. Merge validated v0.2 to `main` and update through HACS.
 
