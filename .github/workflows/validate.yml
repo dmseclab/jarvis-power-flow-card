@@ -20,7 +20,10 @@ jobs:
         run: cmp src/jarvis-power-flow-card.js dist/jarvis-power-flow-card.js
       - name: Validate package metadata
         run: node -e "const j=require('./hacs.json'); if(j.filename!=='jarvis-power-flow-card.js') process.exit(1)"
-  hacs:
+  hacs-publication-check:
+    # Public catalog requirements (licence, screenshot, topics) are checked
+    # when preparing an approved release, not on every experimental commit.
+    if: github.event_name == 'pull_request' && github.base_ref == 'main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
