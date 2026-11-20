@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.env
+*.log
+*.tar
+*.zip
+secrets.yaml
+.storage/
+__pycache__/
+.DS_Store
