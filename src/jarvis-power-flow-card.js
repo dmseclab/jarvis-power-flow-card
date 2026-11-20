@@ -1,4 +1,4 @@
-/* JARVIS Power Flow Card v0.2.0-alpha — read-only cinematic HUD. */
+/* JARVIS Power Flow Card v0.3.0-alpha — read-only cinematic HUD. */
 const JARVIS_DEFAULTS = {
   pv1_power:"sensor.ss_pv1_power", pv2_power:"sensor.ss_pv2_power",
   battery_soc:"sensor.ss_battery_soc", battery_power:"sensor.ss_battery_power",
@@ -143,6 +143,15 @@ class JarvisPowerFlowCard extends HTMLElement {
     const gridOn=flows.gridEnabled,battOn=flows.batteryEnabled;
     const gridReverse=flows.gridReverse,battReverse=flows.batteryReverse;
     const isAvailable=this.status("inverter_status")!=="Unavailable";
+    const stateClass=(mode)=>mode==="generating"||mode==="supplied"||mode==="discharging"||mode==="importing"?"engaged":mode==="charging"||mode==="exporting"?"reversing":"idle";
+    const telemetryPanel=(num,title,subtitle,color,body)=>'<section class="hud-panel" style="--hud:'+color+'"><div class="hud-head"><span>'+fmt(num+' // '+title)+'</span><small>'+fmt(subtitle)+'</small></div><div class="hud-body">'+body+'</div></section>';
+    const readout=(label,value)=>'<div class="readout"><small>'+fmt(label)+'</small><strong>'+fmt(value)+'</strong></div>';
+    const battLabel=flows.battery==="discharging"?"DISCHARGING":flows.battery==="charging"?"CHARGING":flows.battery.toUpperCase();
+    const gridLabel=flows.grid==="importing"?"IMPORTING":flows.grid==="exporting"?"EXPORTING":flows.grid.toUpperCase();
+    const dialValue=pct===null?0:pct;
+    const chargeDial='<div class="charge-dial" style="--pct:'+dialValue+'"><div class="dial-inner"><strong>'+fmt(soc===null?'—':soc.toFixed(1)+'%')+'</strong><small>STATE OF CHARGE</small></div></div>';
+    const barValue=solar===null?0:jClamp(solar/10000*100,0,100);
+    const miniBar='<div class="solar-track"><div class="solar-fill" style="width:'+barValue+'%"></div></div>';
     const markup='<style>'+
       ':host{display:block;width:100%;min-width:0;box-sizing:border-box;color:#e7f9ff;font-family:Arial,Roboto,sans-serif}'+
       '*,*::before,*::after{box-sizing:border-box}ha-card{display:block;min-width:0;width:100%;overflow:hidden;position:relative;border:1px solid #20c9ec;border-radius:17px;'+
@@ -164,8 +173,21 @@ class JarvisPowerFlowCard extends HTMLElement {
       '.metric span{display:block;color:#a2bac9;font-size:10px;letter-spacing:.4px;overflow-wrap:anywhere}'+
       '.metric strong{display:block;color:#f1fcff;font-size:16px;margin-top:5px}'+
       '.foot{display:flex;flex-wrap:wrap;gap:6px 14px;justify-content:space-between;color:#89b9c8;font-size:10px;line-height:1.5;margin-top:12px;padding-right:8px}'+
+      '.command-line{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:9px 0 0;font-size:10px;color:#80bdd4;letter-spacing:1.5px}'+
+      '.command-line:after{content:"";flex:1;height:1px;background:linear-gradient(90deg,#28def5aa,transparent)}'+
+      '.systems{display:grid;grid-template-columns:1.05fr 1.05fr 1fr 1fr;gap:10px;margin-top:15px}'+
+      '.hud-panel{min-width:0;border:1px solid color-mix(in srgb,var(--hud) 65%,#14304a);border-radius:10px;overflow:hidden;background:linear-gradient(135deg,#0b2336,#061421);box-shadow:inset 0 0 22px #11b7ed0b}'+
+      '.hud-head{padding:10px 12px;border-bottom:1px solid color-mix(in srgb,var(--hud) 35%,#183449);box-shadow:inset 3px 0 var(--hud);display:flex;justify-content:space-between;gap:8px;align-items:center}'+
+      '.hud-head span{color:var(--hud);font-size:12px;letter-spacing:.8px;font-weight:700}.hud-head small{color:#85a9be;font-size:9px;text-align:right}'+
+      '.hud-body{padding:12px;min-width:0}.dual{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.readout{min-width:0;padding:7px 9px;background:#102c403d;border:1px solid #20435a;border-radius:6px}'+
+      '.readout small{display:block;color:#8fbbd0;font-size:10px}.readout strong{display:block;margin-top:3px;color:#effcff;font-size:15px;overflow-wrap:anywhere}'+
+      '.batt-layout{display:flex;align-items:center;gap:12px}.batt-layout .dual{flex:1}.charge-dial{width:84px;height:84px;flex:none;border-radius:50%;padding:8px;background:conic-gradient(#2de5a3 calc(var(--pct)*1%),#20374a 0);box-shadow:0 0 16px #1dda9850}'+
+      '.dial-inner{border-radius:50%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#082033}.dial-inner strong{font-size:17px}.dial-inner small{font-size:7px;color:#9dd9c9;text-align:center}'+
+      '.solar-track{margin-top:10px;height:8px;overflow:hidden;border-radius:10px;background:#21364a}.solar-fill{height:100%;border-radius:10px;background:linear-gradient(90deg,#f1af32,#ffe987);box-shadow:0 0 10px #ffcc38}'+
+      '.mode{font-size:11px;letter-spacing:1px;margin-top:8px;color:var(--hud)}.diagnostic{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid #28465b;font-size:11px}.diagnostic span{color:#89b9cc}.diagnostic b{color:#eaf9ff;text-align:right}'+
       '.legend{color:#44e4ad}'+
-      '@media(max-width:650px){.shell{padding:12px 15px 16px}.status,.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}'+
+      '@media(max-width:1050px){.systems{grid-template-columns:repeat(2,minmax(0,1fr))}}'+
+      '@media(max-width:650px){.systems{grid-template-columns:minmax(0,1fr)}.hud-head{padding:9px 11px}'+.shell{padding:12px 15px 16px}.status,.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}'+
       '.header{flex-wrap:wrap}.stage{min-width:0}.metric strong{font-size:14px}}'+
       '@media(prefers-reduced-motion:reduce){.wire.on{animation:none}}'+
       '</style><ha-card><div class="shell"><div class="header"><div><div class="eyebrow">STARK INDUSTRIES / LIVE ENERGY TELEMETRY</div>'+
@@ -209,7 +231,26 @@ class JarvisPowerFlowCard extends HTMLElement {
       '<path d="M958 321 L911 414 H1005 Z M927 375 H991 M919 393 H999 M958 324 V415" fill="none" stroke="#fb6982" stroke-width="5"/>'+
       cap(855,441,"05 / GRID","#ff8497")+txt(855,462,this.powerText(grid),19)+
       '</g>'+
-      '</svg><div class="metrics">'+
+      '</svg><div class="command-line"><strong>ENERGY INTELLIGENCE / LIVE SYSTEM MODULES</strong></div><div class="systems">'+
+      telemetryPanel('06','BATTERY INTELLIGENCE',battLabel,'#2de9aa',
+        '<div class="batt-layout">'+chargeDial+'<div class="dual">'+
+        readout('BATTERY POWER',this.powerText(battery))+readout('VOLTAGE',voltage===null?'—':voltage.toFixed(1)+' V')+
+        readout('CURRENT',current===null?'—':current.toFixed(1)+' A')+readout('FLOW',flows.battery.toUpperCase())+'</div></div>')+
+      telemetryPanel('07','SOLAR INTELLIGENCE','PV STRINGS','#f9c74b',
+        '<div class="dual">'+readout('PV STRING 1',this.powerText(a))+readout('PV STRING 2',this.powerText(b))+
+        readout('LIVE GENERATION',this.powerText(solar))+readout('DAILY YIELD',this.energy('day_pv_energy'))+
+        '</div>'+miniBar+'<div class="mode">'+fmt(flows.solar.toUpperCase())+'</div>')+
+      telemetryPanel('08','GRID MANAGEMENT',gridLabel,'#fb7185',
+        '<div class="dual">'+readout('GRID CT POWER',this.powerText(grid))+
+        readout('FLOW STATE',gridLabel)+readout('IMPORT TODAY',this.energy('day_grid_import'))+
+        readout('EXPORT TODAY',this.energy('day_grid_export'))+'</div>')+
+      telemetryPanel('09','HOME & DIAGNOSTICS','LIVE SYSTEM','#57bdff',
+        '<div class="diagnostic"><span>House demand</span><b>'+fmt(this.powerText(home))+'</b></div>'+
+        '<div class="diagnostic"><span>Inverter status</span><b>'+fmt(this.status('inverter_status'))+'</b></div>'+
+        '<div class="diagnostic"><span>Battery flow</span><b>'+fmt(battLabel)+'</b></div>'+
+        '<div class="diagnostic"><span>Grid flow</span><b>'+fmt(gridLabel)+'</b></div>'+
+        '<div class="diagnostic"><span>Daily consumption</span><b>'+fmt(this.energy('day_load_energy'))+'</b></div>')+
+      '</div><div class="metrics">'+
       metric("SOLAR TODAY",this.energy("day_pv_energy"),"#f8c54a")+
       metric("HOME TODAY",this.energy("day_load_energy"),"#42bfff")+
       metric("GRID IMPORT TODAY",this.energy("day_grid_import"),"#fd8096")+
