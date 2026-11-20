@@ -1,0 +1,24 @@
+name: Validate JARVIS dashboard card
+on:
+  push:
+    branches: [main, development]
+  pull_request:
+    branches: [main, development]
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: JavaScript syntax check
+        run: |
+          node --check src/jarvis-power-flow-card.js
+          node --check dist/jarvis-power-flow-card.js
+      - name: Verify installable file matches source
+        run: cmp src/jarvis-power-flow-card.js dist/jarvis-power-flow-card.js
+      - name: Check HACS metadata
+        run: node -e "const j=require('./hacs.json'); if(j.filename!=='jarvis-power-flow-card.js') process.exit(1)"
+# Public HACS catalog validation is intentionally deferred until
+# the first browser-tested release, with license/topics/screenshots.
