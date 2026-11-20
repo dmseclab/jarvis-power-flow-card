@@ -1,0 +1,29 @@
+name: Validate JARVIS dashboard card
+on:
+  push:
+    branches: [main, development]
+  pull_request:
+    branches: [main, development]
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: JavaScript syntax check
+        run: |
+          node --check src/jarvis-power-flow-card.js
+          node --check dist/jarvis-power-flow-card.js
+      - name: Check published file matches source
+        run: cmp src/jarvis-power-flow-card.js dist/jarvis-power-flow-card.js
+      - name: Validate package metadata
+        run: node -e "const j=require('./hacs.json'); if(j.filename!=='jarvis-power-flow-card.js') process.exit(1)"
+  hacs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hacs/action@main
+        with:
+          category: plugin
