@@ -97,4 +97,38 @@ assert.ok(rich.includes('PV STRING 1'), 'PV diagnostics should render');
 assert.ok(rich.includes('GRID CT POWER'), 'grid telemetry should render');
 assert.ok(rich.includes('Daily consumption'), 'house telemetry should render');
 assert.ok(!rich.includes('NaN'), 'rich panels must not fabricate numeric values');
+// Operating mode is conservative, explicit and does not allocate sources.
+card.setConfig({battery_positive_is_discharge:true});
+let state=card.flowState(0,3000,3400,0);
+let mode=card.operatingMode(state,{solar:0,home:3000,battery:3400,grid:0});
+assert.equal(mode.name,'BATTERY SUPPLY');
+state=card.flowState(2000,3000,1500,0);
+mode=card.operatingMode(state,{solar:2000,home:3000,battery:1500,grid:0});
+assert.equal(mode.name,'SOLAR + BATTERY SUPPLY');
+state=card.flowState(0,3000,-900,800);
+mode=card.operatingMode(state,{solar:0,home:3000,battery:-900,grid:800});
+assert.equal(mode.name,'GRID FLOW UNVERIFIED');
+card.setConfig({battery_positive_is_discharge:true,grid_positive_is_import:true});
+state=card.flowState(0,3000,-900,1800);
+mode=card.operatingMode(state,{solar:0,home:3000,battery:-900,grid:1800});
+assert.equal(mode.name,'GRID IMPORT + CHARGING');
+state=card.flowState(5000,2000,0,-2500);
+mode=card.operatingMode(state,{solar:5000,home:2000,battery:0,grid:-2500});
+assert.equal(mode.name,'GRID EXPORT');
+state=card.flowState(null,null,500,null);
+mode=card.operatingMode(state,{solar:null,home:null,battery:500,grid:null});
+assert.equal(mode.name,'DATA INCOMPLETE');
+const quality=card.dataQuality({solar:0,home:1000,battery:null,grid:0,soc:80});
+assert.deepEqual([...quality.missing],['battery']);
+card.hass={states:{
+  'sensor.ss_overall_state':{state:'ok',attributes:{}},
+  'sensor.ss_load_power':{state:'3000',attributes:{unit_of_measurement:'W'}},
+  'sensor.ss_battery_power':{state:'3400',attributes:{unit_of_measurement:'W'}},
+  'sensor.ss_battery_soc':{state:'80',attributes:{unit_of_measurement:'%'}},
+  'sensor.ss_grid_ct_power':{state:'0',attributes:{unit_of_measurement:'W'}},
+  'sensor.ss_pv1_power':{state:'0',attributes:{unit_of_measurement:'W'}},
+  'sensor.ss_pv2_power':{state:'0',attributes:{unit_of_measurement:'W'}}
+}};
+assert.ok(card.shadowRoot.innerHTML.includes('BATTERY SUPPLY'),'mode banner rendered');
+assert.ok(card.shadowRoot.innerHTML.includes('ALL CHANNELS PRESENT'),'quality banner rendered');
 console.log('JARVIS smoke test passed');
