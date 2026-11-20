@@ -42,4 +42,24 @@ card.hass={states:{
   'sensor.ss_overall_state':{state:'ok',attributes:{}}
 }};
 assert.match(card.shadowRoot.innerHTML,/wire on reverse/, 'positive battery discharge reverses inverter-to-battery path');
+// In-place reconciliation must not replace an existing SVG path when only attributes change.
+const attrs=new Map([['class','wire on']]);
+const svgNode={
+  nodeType:1,nodeName:'path',attributes:[{name:'class'}],
+  childNodes:[],
+  hasAttribute:k=>attrs.has(k),
+  getAttribute:k=>attrs.get(k),
+  setAttribute:(k,v)=>attrs.set(k,v),
+  removeAttribute:k=>attrs.delete(k),
+  replaceWith:()=>{throw new Error('animation path was replaced')}
+};
+const newAttrs=new Map([['class','wire on reverse']]);
+const incoming={
+  nodeType:1,nodeName:'path',attributes:[{name:'class',value:'wire on reverse'}],
+  childNodes:[],hasAttribute:k=>newAttrs.has(k),
+  getAttribute:k=>newAttrs.get(k)
+};
+card.reconcileNode(svgNode,incoming);
+assert.equal(svgNode.getAttribute('class'),'wire on reverse');
+assert.equal(svgNode.nodeName,'path');
 console.log('JARVIS smoke test passed');
