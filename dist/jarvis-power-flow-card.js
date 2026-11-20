@@ -187,7 +187,7 @@ class JarvisPowerFlowCard extends HTMLElement {
       '.mode{font-size:11px;letter-spacing:1px;margin-top:8px;color:var(--hud)}.diagnostic{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid #28465b;font-size:11px}.diagnostic span{color:#89b9cc}.diagnostic b{color:#eaf9ff;text-align:right}'+
       '.legend{color:#44e4ad}'+
       '@media(max-width:1050px){.systems{grid-template-columns:repeat(2,minmax(0,1fr))}}'+
-      '@media(max-width:650px){.systems{grid-template-columns:minmax(0,1fr)}.hud-head{padding:9px 11px}'+.shell{padding:12px 15px 16px}.status,.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}'+
+      '@media(max-width:650px){.systems{grid-template-columns:minmax(0,1fr)}.hud-head{padding:9px 11px}.shell{padding:12px 15px 16px}.status,.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}'+
       '.header{flex-wrap:wrap}.stage{min-width:0}.metric strong{font-size:14px}}'+
       '@media(prefers-reduced-motion:reduce){.wire.on{animation:none}}'+
       '</style><ha-card><div class="shell"><div class="header"><div><div class="eyebrow">STARK INDUSTRIES / LIVE ENERGY TELEMETRY</div>'+
