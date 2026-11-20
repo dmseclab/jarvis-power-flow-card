@@ -40,3 +40,15 @@ Development branch only until Home Assistant browser screenshots, responsive siz
 ## Active working process
 
 Per operator instruction, `main` is the active HACS test branch until v1 acceptance. Once v1 is approved, freeze main for validated releases and use development for new features. Validate with Github CI and real Home Assistant screenshots before marking stable.
+
+## v0.3.0-alpha: command-centre presentation
+
+The card now renders four integrated intelligence modules below the SVG power-flow stage:
+1. **Battery Intelligence:** actual SOC circular gauge, battery power, voltage, current and confirmed charge/discharge state.
+2. **Solar Intelligence:** separate measured PV1/PV2 power, total power and daily yield. The visual solar bar has a **display-only 10 kW scale**, not a claimed equipment rating; its purpose is decorative context, not an efficiency KPI.
+3. **Grid Management:** measured grid CT and daily import/export; direction remains explicitly unverified until polarity is measured.
+4. **Home & Diagnostics:** actual home power, inverter status, battery/grid modes and today's consumption.
+
+The outer HUD uses its own card padding and responsive CSS at 1050 and 650 px breakpoints. No forecast or historical plot is invented when source data is absent. All values come from existing entity mappings and no control services are called.
+
+**Operator acceptance pending:** check HACS redownload, desktop/mobile layout, source values, circular SOC dial, and normal charging/import transitions. Keep `main` as alpha working branch until v1 approval.
