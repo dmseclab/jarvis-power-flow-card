@@ -34,4 +34,12 @@ assert.ok(html.includes('grid-template-columns:repeat(2'), 'responsive narrow-sc
 assert.ok(html.includes('padding-right:8px'), 'footer safe-right padding');
 assert.ok(!html.includes('hass.callService'), 'card must remain read-only');
 assert.ok(!html.includes('NaN'), 'must not invent invalid readings');
+// Positive battery power must animate toward the inverter when configured as discharge.
+card.setConfig({battery_positive_is_discharge:true});
+card.hass={states:{
+  'sensor.ss_battery_power':{state:'6850',attributes:{unit_of_measurement:'W'}},
+  'sensor.ss_battery_soc':{state:'89.8',attributes:{unit_of_measurement:'%'}},
+  'sensor.ss_overall_state':{state:'ok',attributes:{}}
+}};
+assert.match(card.shadowRoot.innerHTML,/wire on reverse/, 'positive battery discharge reverses inverter-to-battery path');
 console.log('JARVIS smoke test passed');
