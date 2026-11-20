@@ -40,6 +40,29 @@ class JarvisPowerFlowCard extends HTMLElement {
     if (!n) return null;
     return n.value * (n.unit==="kW"?1000:1);
   }
+  // Each measured link is independent: do not infer a fictional power split to the house.
+  flowState(solar, home, battery, grid) {
+    const t=Math.max(0,Number(this.cfg.minimum_flow_w) || 40);
+    const batterySign=this.cfg.battery_positive_is_discharge;
+    const gridSign=this.cfg.grid_positive_is_import;
+    const active=v=>v!==null && Math.abs(v)>t;
+    const batteryMode=!active(battery) ? (battery===null?"unknown":"idle") :
+      typeof batterySign!=="boolean" ? "unverified" :
+      (batterySign ? battery>0 : battery<0) ? "discharging" : "charging";
+    const gridMode=!active(grid) ? (grid===null?"unknown":"idle") :
+      typeof gridSign!=="boolean" ? "unverified" :
+      (gridSign ? grid>0 : grid<0) ? "importing" : "exporting";
+    return {
+      solar: solar!==null && solar>t ? "generating" : (solar===null?"unknown":"idle"),
+      home: home!==null && home>t ? "supplied" : (home===null?"unknown":"idle"),
+      battery:batteryMode,grid:gridMode,
+      // Link directions describe net measured transfer through inverter, not final attribution.
+      batteryEnabled:batteryMode==="charging"||batteryMode==="discharging",
+      batteryReverse:batteryMode==="discharging",
+      gridEnabled:gridMode==="importing"||gridMode==="exporting",
+      gridReverse:gridMode==="exporting"
+    };
+  }
   powerText(value) {
     if (value===null) return "—";
     if (Math.abs(value)>=1000) return (value/1000).toFixed(2)+" kW";
@@ -104,10 +127,7 @@ class JarvisPowerFlowCard extends HTMLElement {
     const voltage=this.number("battery_voltage")?.value??null;
     const current=this.number("battery_current")?.value??null;
     const threshold=Math.max(0,Number(this.cfg.minimum_flow_w)||40);
-    const batterySign=this.cfg.battery_positive_is_discharge;
-    const gridSign=this.cfg.grid_positive_is_import;
-    const gridVerified=typeof gridSign==="boolean";
-    const batteryVerified=typeof batterySign==="boolean";
+    const flows=this.flowState(solar,home,battery,grid);
     const pct=soc===null?null:jClamp(soc,0,100);
     const fmt=(x)=>jEsc(x);
     const metric=(label,value,color)=>'<div class="metric" style="--accent:'+color+'"><span>'+
@@ -119,11 +139,9 @@ class JarvisPowerFlowCard extends HTMLElement {
     const wire=(d,color,on,reverse=false)=>'<path d="'+d+'" fill="none" stroke="'+color+
       '" stroke-width="9" opacity=".13"/><path d="'+d+'" fill="none" stroke="'+color+
       '" stroke-width="3.5" class="wire '+(on?'on':'')+(reverse?' reverse':'')+'"/>';
-    const solarOn=solar!==null&&solar>threshold,homeOn=home!==null&&home>threshold;
-    const gridOn=gridVerified&&grid!==null&&Math.abs(grid)>threshold;
-    const battOn=batteryVerified&&battery!==null&&Math.abs(battery)>threshold;
-    const gridReverse=gridSign===true?grid<0:grid>0;
-    const battReverse=batterySign===true?battery>0:battery<0;
+    const solarOn=flows.solar==="generating",homeOn=flows.home==="supplied";
+    const gridOn=flows.gridEnabled,battOn=flows.batteryEnabled;
+    const gridReverse=flows.gridReverse,battReverse=flows.batteryReverse;
     const isAvailable=this.status("inverter_status")!=="Unavailable";
     const markup='<style>'+
       ':host{display:block;width:100%;min-width:0;box-sizing:border-box;color:#e7f9ff;font-family:Arial,Roboto,sans-serif}'+
@@ -171,9 +189,9 @@ class JarvisPowerFlowCard extends HTMLElement {
       '<g><rect x="45" y="76" width="238" height="165" rx="12" fill="url(#jarvisBg)" stroke="#f6c33e" stroke-width="2"/>'+
       '<path d="M94 128 L195 103 L232 163 L130 185 Z M127 121 L159 175 M160 113 L192 167 M193 105 L225 159 M110 155 L216 128" stroke="#f4c13c" stroke-width="4" fill="none"/>'+
       cap(64,206,"01 / SOLAR","#f5c848")+txt(64,231,this.powerText(solar),22)+
-      '<rect x="838" y="76" width="235" height="165" rx="12" fill="url(#jarvisBg)" stroke="#52bfff" stroke-width="2"/>'+
-      '<path d="M903 151 L955 104 L1008 151 M919 141 V196 H994 V141 M944 196 V163 H970 V196" stroke="#61bbfa" fill="none" stroke-width="8"/>'+
-      cap(857,210,"02 / HOUSE","#6abfff")+txt(857,234,this.powerText(home),22)+
+      '<rect x="838" y="64" width="235" height="185" rx="12" fill="url(#jarvisBg)" stroke="#52bfff" stroke-width="2"/>'+
+      '<path d="M908 126 L955 87 L1001 126 M922 117 V170 H988 V117 M945 170 V143 H965 V170" stroke="#61bbfa" fill="none" stroke-width="7"/>'+
+      cap(857,204,"02 / HOUSE LOAD","#6abfff")+txt(857,233,this.powerText(home),25)+
       '<rect x="427" y="153" width="266" height="210" rx="17" fill="#0b354e" stroke="#45dcfa" stroke-width="3"/>'+
       '<rect x="438" y="164" width="244" height="188" rx="10" fill="none" stroke="#66dfff" opacity=".25"/>'+
       '<circle cx="560" cy="245" r="49" stroke="#40dffc" fill="#0e2942" stroke-width="3"/>'+
@@ -197,8 +215,8 @@ class JarvisPowerFlowCard extends HTMLElement {
       metric("GRID IMPORT TODAY",this.energy("day_grid_import"),"#fd8096")+
       metric("GRID EXPORT TODAY",this.energy("day_grid_export"),"#36e7a2")+
       '</div><div class="foot"><span class="legend">● POWER FLOW · LOCAL HOME ASSISTANT DATA</span><span>'+
-      'Battery current '+fmt(current===null?'—':current.toFixed(1)+' A')+
-      ' · Grid/battery direction '+(gridVerified&&batteryVerified?'configured':'requires validation')+
+      'Battery '+fmt(flows.battery)+' ('+fmt(current===null?'—':current.toFixed(1)+' A')+')'+
+      ' · Grid '+fmt(flows.grid)+(flows.grid==="unverified"?' · SET GRID POLARITY AFTER CHECK':'')+
       '</span></div></div></ha-card>';
     this.applyMarkup(markup);
   }
