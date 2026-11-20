@@ -19,7 +19,7 @@ A standalone **read-only** Lovelace JavaScript custom element. SVG is drawn in a
 - `sensor.ss_load_power` represents home demand; do **not** reuse signed `sensor.ss_inverter_power` as house consumption.
 - Unknown/unavailable numeric sources show a dash, not fabricated zero.
 - Battery state of charge is clipped to 0–100 solely for the display fill.
-- **Grid and battery direction animations remain disabled by default.** Direction must be checked against the working Sunsynk card before setting `grid_positive_is_import` and `battery_positive_is_discharge` explicitly.
+- **Grid direction remains disabled by default.** On 20 Nov 2026 the operator confirmed positive battery power (+6.85 kW, +132.7 A) corresponded to battery discharge supplying home load. For this installation use `battery_positive_is_discharge: true`. Never assume the same sign convention for other installations. `grid_positive_is_import` remains unset until a measured import/export state is checked.
 - Card never invokes Home Assistant services or inverter controls.
 - Current SVG DOM rerenders on each HA update: streamline later if performance/animation jitter appears.
 
