@@ -505,6 +505,10 @@ class JarvisPowerFlowCard extends HTMLElement {
       '<rect x="514" y="308" width="92" height="30" rx="6" fill="#051c30" stroke="#236781" stroke-width="1"/>'+
       '<circle cx="525" cy="323" r="4" fill="'+(isAvailable?'#34efb5':'#fba36e')+'" class="inverter-breath"/>'+
       '<text x="562" y="329" fill="#c9f6ff" text-anchor="middle" font-size="15" font-weight="700">'+fmt(this.status("inverter_status"))+'</text>'+
+      '<text x="560" y="353" text-anchor="middle" fill="#7ab4c9" font-size="8" font-weight="700" letter-spacing="2">SUNSYNK / ENERGY</text>'+
+      '<circle cx="449" cy="191" r="2.5" fill="#43d8f3" opacity=".7"/>'+
+      '<circle cx="670" cy="191" r="2.5" fill="#43d8f3" opacity=".7"/>'+
+      '<path d="M443 317 V328 M677 317 V328" stroke="#23a3c3" stroke-width="3" opacity=".6"/>'+
       '<rect x="45" y="302" width="239" height="165" rx="12" fill="url(#jarvisBg)" stroke="#36e4a4" stroke-width="2"/>'+
       '<rect x="69" y="331" width="65" height="104" rx="6" fill="#071b2a" stroke="#39e9ac" stroke-width="3"/>'+
       '<rect x="79" y="'+(425-(pct??0)*.84)+'" width="45" height="'+((pct??0)*.84)+'" rx="2" fill="url(#jarvisMeter)"/>'+
