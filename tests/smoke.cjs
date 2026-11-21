@@ -215,6 +215,29 @@ assert.equal(stable.grid,'idle','opposite grid sign near zero must not appear ac
 stable=card.flowState(0,1000,70,-80);
 assert.equal(stable.battery,'discharging','strong reverse battery flow activates');
 assert.equal(stable.grid,'exporting','strong reverse grid flow activates');
+// v0.10: preserve live power readouts and protect narrow-screen usability.
+card.setConfig({battery_positive_is_discharge:true,grid_positive_is_import:true});
+card.hass={states:{
+  'sensor.ss_overall_state':{state:'ok',attributes:{}},
+  'sensor.ss_pv1_power':{state:'1100',attributes:{unit_of_measurement:'W'}},
+  'sensor.ss_pv2_power':{state:'900',attributes:{unit_of_measurement:'W'}},
+  'sensor.ss_load_power':{state:'1450',attributes:{unit_of_measurement:'W'}},
+  'sensor.ss_battery_power':{state:'-75',attributes:{unit_of_measurement:'W'}},
+  'sensor.ss_battery_soc':{state:'93',attributes:{unit_of_measurement:'%'}},
+  'sensor.ss_grid_ct_power':{state:'320',attributes:{unit_of_measurement:'W'}}
+}};
+const candidate=card.shadowRoot.innerHTML;
+assert.ok(candidate.includes('inverter-vents'),'new inverter fascia must render');
+assert.ok(candidate.includes('SUNSYNK / ENERGY'),'inverter branding plate must render');
+assert.ok(candidate.includes('mobile-readouts'),'responsive power values must render');
+assert.ok(candidate.includes('aria-label="Accessible power flow readings"'),'mobile content is labeled');
+assert.ok(candidate.includes('mobile-readouts{display:grid}'),'narrow-screen style rule is present');
+assert.ok(candidate.includes('GRID · IMPORTING'),'mobile grid direction uses measured rule');
+assert.ok(candidate.includes('BATTERY · CHARGING'),'mobile battery direction uses confirmed polarity');
+assert.ok(candidate.includes('2.00 kW'),'mobile solar sum uses live PVs');
+assert.ok(candidate.includes('1.45 kW'),'mobile home demand uses live sensor');
+assert.ok(candidate.includes('stroke-dashoffset:-46'),'validated smooth animation stays intact');
+assert.ok(!candidate.includes('NaN'),'candidate must not show invalid values');
 // v0.7: rounded engineering kW scale must cover all observed values.
 let axis=card.historyBounds([-7100,415,8000]);
 assert.ok(axis.min<=-7100 && axis.max>=8000, 'axis includes signed extrema');
