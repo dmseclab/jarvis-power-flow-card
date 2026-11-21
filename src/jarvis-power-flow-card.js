@@ -97,7 +97,8 @@ class JarvisPowerFlowCard extends HTMLElement {
     const keyHtml=series.map(s=>'<span style="color:'+s.color+'">● '+s.title+'</span>').join("");
     if (!all.length) return '<div class="history-empty">'+jEsc(this._historyStatus||"WAITING FOR HISTORY")+
       '<small>Requires Home Assistant Recorder history for these power sensors</small></div><div class="history-legend">'+keyHtml+'</div>';
-    const low=Math.min(0,...all), high=Math.max(0,...all);
+    let low=0,high=0;
+    for(const value of all){if(value<low)low=value;if(value>high)high=value;}
     const min=low===high?low-100:low, max=low===high?high+100:high;
     const width=1060,height=215,left=67,right=1037,top=16,bottom=183;
     const xmin=this._historyStart || Date.now()-86400000;
@@ -112,6 +113,7 @@ class JarvisPowerFlowCard extends HTMLElement {
         '" text-anchor="end" fill="#8fbbcc" font-size="13">'+jEsc(fmtV(val))+'</text>';
     }).join("");
     const paths=series.map(s=>{
+      // Limit SVG point density; retain the first and last sample for each slice.
       // Broken recorder intervals are not bridged with invented samples.
       let chunks=[],run=[],prev=null;
       for(const p of s.points){
@@ -119,11 +121,20 @@ class JarvisPowerFlowCard extends HTMLElement {
         run.push(p);prev=p.time;
       }
       if(run.length)chunks.push(run);
-      return chunks.map(group=>group.length>1?'<polyline fill="none" stroke="'+s.color+
+      return chunks.map(group=>{
+        const maxPoints=420;
+        if(group.length>maxPoints){
+          const step=Math.ceil(group.length/maxPoints),reduced=[];
+          for(let k=0;k<group.length;k+=step) reduced.push(group[k]);
+          if(reduced[reduced.length-1]!==group[group.length-1]) reduced.push(group[group.length-1]);
+          group=reduced;
+        }
+        return group.length>1?'<polyline fill="none" stroke="'+s.color+
         '" stroke-width="2" opacity=".95" vector-effect="non-scaling-stroke" points="'+
         group.map(p=>x(p.time).toFixed(1)+','+y(p.value).toFixed(1)).join(' ')+'"/>':
         '<circle cx="'+x(group[0].time).toFixed(1)+'" cy="'+y(group[0].value).toFixed(1)+
-        '" r="2.5" fill="'+s.color+'"/>').join("");
+        '" r="2.5" fill="'+s.color+'"/>';
+      }).join("");
     }).join("");
     const tick=Array.from({length:5},(_,i)=>{
       const t=xmin+(xmax-xmin)*i/4;
