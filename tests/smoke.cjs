@@ -131,4 +131,27 @@ card.hass={states:{
 }};
 assert.ok(card.shadowRoot.innerHTML.includes('BATTERY SUPPLY'),'mode banner rendered');
 assert.ok(card.shadowRoot.innerHTML.includes('ALL CHANNELS PRESENT'),'quality banner rendered');
+
+card.setConfig({battery_positive_is_discharge:true,grid_positive_is_import:true});
+card.hass={states:{
+  'binary_sensor.ss_grid_connected':{state:'on',attributes:{}},
+  'sensor.ss_overall_state':{state:'ok',attributes:{}},
+  'sensor.ss_grid_ct_power':{state:'0',attributes:{unit_of_measurement:'W'}},
+  'sensor.ss_load_power':{state:'2200',attributes:{unit_of_measurement:'W'}},
+  'sensor.ss_battery_power':{state:'-652',attributes:{unit_of_measurement:'W'}},
+  'sensor.ss_battery_voltage':{state:'55.8',attributes:{unit_of_measurement:'V'}},
+  'sensor.ss_battery_current':{state:'-35',attributes:{unit_of_measurement:'A'}},
+  'sensor.ss_battery_soc':{state:'97',attributes:{unit_of_measurement:'%'}},
+  'sensor.ss_pv1_power':{state:'522',attributes:{unit_of_measurement:'W'}},
+  'sensor.ss_pv2_power':{state:'526',attributes:{unit_of_measurement:'W'}}
+}};
+assert.equal(card.gridConnection(),'CONNECTED');
+assert.equal(card.batteryPlausibility(-652,55.8,-35).flag,true);
+assert.equal(card.batteryPlausibility(-1900,55.8,-35).flag,false);
+assert.equal(card.batteryPlausibility(null,55.8,-35).label,'NOT CHECKED');
+assert.ok(card.shadowRoot.innerHTML.includes('GRID CONNECTION'));
+assert.ok(card.shadowRoot.innerHTML.includes('CHECK P / V / I'));
+card.hass={states:{'binary_sensor.ss_grid_connected':{state:'off',attributes:{}}}};
+assert.equal(card.gridConnection(),'DISCONNECTED');
+assert.equal(card.batteryPlausibility(null,null,null).flag,false);
 console.log('JARVIS smoke test passed');
