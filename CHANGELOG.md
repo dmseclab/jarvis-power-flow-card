@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.11.0-alpha — final layout and instrumentation candidate — 21 November 2026
+
+- Battery, Solar, Grid and Diagnostics panels now size to their own content rather than stretching uniformly to the height of the longest panel.
+- Added small **six-hour Recorder-based trends** in the Battery, Solar (PV1/PV2) and Grid panels, reusing the existing five-channel history cache; no additional API requests or fabricated samples. Displays **NO RECORDED TREND** if history is missing.
+- Compact directional tags communicate source/destination instead of duplicating live watt figures already shown inside the large node cards.
+- Added visible **JARVIS v0.11.0-alpha** build label in the card footer to simplify HACS update verification and support.
+- Retained existing PV1/PV2 contribution bar, battery/grid sign conventions, hysteresis, seamless animation, operating modes and 24-hour recorded history.
+- Updated regression tests for layout, footers, direction labels and authentic trend samples.
+- Automated GitHub checks passed; **live desktop and mobile browser acceptance is still pending**. This is not the frozen Version 1 release.
+
 ## v0.10.0-alpha — Version 1 design candidate — 21 November 2026
 
 - Further developed the illustrated Sunsynk inverter with recessed cooling-vent banks, layered faceplate, fine inner instrument ring, front status display and subtle label/indicator details.
