@@ -240,6 +240,38 @@ card.hass={states:{
   'sensor.ss_pv2_power':{state:'unavailable',attributes:{unit_of_measurement:'W'}}
 }};
 assert.ok(card.shadowRoot.innerHTML.includes('PV CONTRIBUTION · DATA UNAVAILABLE'));
+// v0.11: compact independent panels, measured six-hour mini trends,
+// directional-only flow labels and visible version identifier.
+card.setConfig({battery_positive_is_discharge:true,grid_positive_is_import:true});
+card.hass={states:{
+  'sensor.ss_pv1_power':{state:'245',attributes:{unit_of_measurement:'W'}},
+  'sensor.ss_pv2_power':{state:'218',attributes:{unit_of_measurement:'W'}},
+  'sensor.ss_battery_power':{state:'-120',attributes:{unit_of_measurement:'W'}},
+  'sensor.ss_load_power':{state:'1200',attributes:{unit_of_measurement:'W'}},
+  'sensor.ss_grid_ct_power':{state:'550',attributes:{unit_of_measurement:'W'}},
+  'sensor.ss_battery_soc':{state:'88',attributes:{unit_of_measurement:'%'}}
+}};
+const v11=card.shadowRoot.innerHTML;
+assert.ok(v11.includes('JARVIS v0.11.0-alpha'),'build version visible');
+assert.ok(v11.includes('align-items:start'),'unequal-height panels should not stretch');
+assert.ok(v11.includes('SOLAR TO INVERTER'),'solar flow shown as direction');
+assert.ok(v11.includes('INVERTER TO HOME'),'home flow shown as direction');
+assert.ok(v11.includes('GRID TO INVERTER'),'grid direction shown');
+assert.ok(!v11.includes('PV GENERATION</text>'),'duplicate PV direction-tag wattage removed');
+assert.ok(v11.includes('NO RECORDED TREND'),'no history is identified, not invented');
+const now=Date.now();
+card._historyEnd=now;
+card._historyData={
+  'sensor.ss_battery_power':[{time:now-3000000,value:-200},{time:now-600000,value:-120}],
+  'sensor.ss_pv1_power':[{time:now-3000000,value:100},{time:now-600000,value:245}],
+  'sensor.ss_pv2_power':[{time:now-3000000,value:200},{time:now-600000,value:218}],
+  'sensor.ss_grid_ct_power':[{time:now-3000000,value:700},{time:now-600000,value:550}]
+};
+const trend=card.miniHistoryMarkup(['pv1_power','pv2_power'],'PV1 / PV2 POWER',['#ffca48','#f59245']);
+assert.ok(trend.includes('<polyline'),'mini chart uses actual recorded samples');
+assert.ok(trend.includes('#ffca48')&&trend.includes('#f59245'),'both PV streams drawn');
+assert.ok(!trend.includes('NaN'),'history plot has no invalid geometry');
+assert.ok(!trend.includes('callApi'),'mini chart must use cached Recorder readings');
 // v0.10: preserve live power readouts and protect narrow-screen usability.
 card.setConfig({battery_positive_is_discharge:true,grid_positive_is_import:true});
 card.hass={states:{
