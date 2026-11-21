@@ -156,7 +156,7 @@ assert.equal(card.gridConnection(),'DISCONNECTED');
 assert.equal(card.batteryPlausibility(null,null,null).flag,false);
 
 // Recorded-history renderer: real recorder data only, never simulated curves.
-const t0=Date.parse('2026-11-21T08:00:00Z');
+const t0=Date.parse('2026-11-17T08:00:00Z');
 const t1=t0+3600000;
 card._historyStart=t0;
 card._historyEnd=t1;
