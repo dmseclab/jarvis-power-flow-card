@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.8.0-alpha — 21 November 2026
+
+- Rebuilt the central energy scene with a layered inverter housing, soft radial glow, moving orbital instrumentation, active-state beacon and improved neon flow rails.
+- Added **measured directional HUD labels** on solar, home, battery and grid paths. Direction reflects configured net-power polarity; the card still makes no per-source-to-load attribution.
+- Highlighted charging and discharging transitions, grid import/export, and retained the measured house and PV figures alongside the central diagram.
+- Battery near full SOC with a measured small charging value now displays **LOW-RATE CHARGE**, rather than claiming an unverified battery float/absorption state. This affects descriptive text only; the established charge/discharge logic and operating-mode calculation remain unchanged.
+- Kept the real Recorder history, rounded kW graph, quality checks, read-only controls and existing HACS configuration.
+- Added regression tests for grid import/export, battery charging/discharging, active-flow labels, and read-only behavior.
+- All GitHub automated tests passed. **Live Home Assistant browser layout acceptance remains outstanding**.
+
 ## v0.7.0-alpha — 21 November 2026
 
 - Reworked recorded 24-hour chart to show rounded, engineering-style **kW** tick marks with an explicit unit and zero reference; preserves negative grid/battery power and observed extrema.
