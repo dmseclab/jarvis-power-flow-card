@@ -391,6 +391,7 @@ class JarvisPowerFlowCard extends HTMLElement {
       '.header{display:flex;gap:12px;justify-content:space-between;align-items:center;border-bottom:1px solid #30829a;padding:0 0 13px;min-width:0}'+
       '.eyebrow{font-size:10px;letter-spacing:2.5px;color:#71dffc;font-weight:700}'+
       'h2{margin:7px 0 2px;font-size:clamp(19px,3vw,34px);letter-spacing:4px;color:#b5f2ff;text-shadow:0 0 16px #4dd7ff77}'+
+      '.header{position:relative}.header:after{content:"";position:absolute;bottom:-1px;left:0;width:210px;height:2px;background:linear-gradient(90deg,#5be8ff,transparent)}'+
       '.subtitle{font-size:10px;letter-spacing:2px;color:#a1c9dd}.live{white-space:nowrap;font-size:10px;color:#46e6a9;font-weight:700}'+
       '.health-line{display:flex;flex-wrap:wrap;gap:8px;margin:9px 0 4px}.health-chip{border:1px solid #28506b;background:#0a2638;border-radius:6px;padding:7px 10px;color:#aad9e9;font-size:10px}.health-chip b{color:#ecfbff;margin-left:6px}.health-chip.warning{border-color:#bd8b47;color:#ffd88c}.health-chip.warning b{color:#ffd88c}'+
       '.mode-banner{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:12px;margin:12px 0 5px;padding:11px 14px;border:1px solid #285979;background:linear-gradient(110deg,#0a2c41,#081a2c);border-radius:8px}'+
@@ -399,6 +400,8 @@ class JarvisPowerFlowCard extends HTMLElement {
       '.quality-pill{font-size:10px;letter-spacing:.3px;text-align:right;color:#91d7ec;white-space:normal;max-width:180px}'+
       '.status{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin:13px 0 3px}'+
       '.stat{padding:8px 10px;border:1px solid #2b6378;background:#091f30b8;border-radius:8px;min-width:0}'+
+      '.stat:nth-child(1){border-top:2px solid #73e7fb}.stat:nth-child(2){border-top:2px solid #f6cb55}.stat:nth-child(3){border-top:2px solid #39e6ac}.stat:nth-child(4){border-top:2px solid #63bafa}'+
+      '.stat b{font-variant-numeric:tabular-nums}.status{margin-top:15px}'+
       '.stat small{display:block;color:#84bed1;font-size:10px;margin-bottom:3px;letter-spacing:.8px}.stat b{display:block;font-size:15px;color:#e9faff;overflow-wrap:anywhere}'+
       '.stage{width:100%;display:block;height:auto;margin-top:4px;overflow:visible}'+
       '.stage .inverter-vents{filter:drop-shadow(0 0 3px #30bce844)}'+
