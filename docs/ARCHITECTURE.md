@@ -60,3 +60,21 @@ The outer HUD uses its own card padding and responsive CSS at 1050 and 650 px br
 - Because inverter sensor definitions, sampling times and sign conventions may differ, this advisory requires manual comparison with raw Sunsynk entities before any conclusion.
 - Numerical presence and approximate plausibility are separate indicators. The existing `ALL CHANNELS PRESENT` label only means numeric inputs were returned.
 - No Home Assistant service calls, inverter control, schedule modification or backend integration are included.
+
+## v0.6.0-alpha: cinematic history and enhanced energy command scene
+
+- Builds on the existing read-only inverter, solar, grid, battery and home net-flow channels. The inverter has additional illuminated instrumentation and the four lower intelligence panels remain.
+- Adds **10 / ENERGY HISTORY · LAST 24 HOURS** using Home Assistant's authenticated `history/period` API through the already authenticated frontend `hass.callApi`. No separate token, backend service, or third-party network connection.
+- Recorder query is bounded to five configured power sensors (PV1, PV2, home demand, grid CT and battery). A default refresh interval of **15 minutes** is enforced with a minimum of five minutes. It is not queried on every live state update.
+- `show_history: false` disables history requests/visualization; `history_refresh_minutes: 15` customizes refresh.
+- Recorded samples retain their actual signed values (battery charging negative, grid export negative when that convention is configured). Missing, invalid and out-of-range samples are skipped, significant history gaps are **not** interpolated, chart rendering is limited to manageable SVG point density, and missing Recorder history shows **NO RECORDED HISTORY** or **HISTORY UNAVAILABLE**, never a synthetic graph.
+- Power readings are displayed in W based on configured live sensor units. This requires that recorder values use the same unit as current sensor attributes.
+- No scheduling, thresholds, energy totals, automation controls or inverter operation settings are changed.
+- The `main` branch remains the alpha HACS testing channel until Version 1 acceptance.
+
+### Browser acceptance criteria
+1. HACS Redownload current `main`; hard refresh.
+2. Confirm new history panel below intelligence modules with actual recorder values, or explicit fallback message if Recorder lacks these entities.
+3. Confirm values and direction agree with Sunsynk and the previously validated v0.5 card.
+4. Check desktop and narrow layout; the history chart should not clip and the lower panels should no longer awkwardly wrap charging state.
+5. Confirm browser console contains no history errors other than an explicitly handled unavailable Recorder response.
