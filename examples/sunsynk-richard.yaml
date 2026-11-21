@@ -16,6 +16,7 @@ entities:
   battery_voltage: sensor.ss_battery_voltage
   battery_current: sensor.ss_battery_current
   grid_power: sensor.ss_grid_ct_power
+  grid_connected: binary_sensor.ss_grid_connected
   day_pv_energy: sensor.ss_day_pv_energy
   day_load_energy: sensor.ss_day_load_energy
   day_grid_import: sensor.ss_day_grid_import
