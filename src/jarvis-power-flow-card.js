@@ -72,10 +72,10 @@ class JarvisPowerFlowCard extends HTMLElement {
       if (!id || !ids.includes(id)) return;
       parsed[id]=series.map(point=>({
         time:Date.parse(point.last_changed||point.last_updated||""),
-        value:Number(point.state)
+        value:point.state===null||point.state===undefined||point.state===""?NaN:Number(point.state)
       })).filter(point=>Number.isFinite(point.time) &&
         point.time>=start.getTime() && point.time<=end.getTime() &&
-        point.value!==null && Number.isFinite(point.value) &&
+        Number.isFinite(point.value) &&
         point.value>=-1000000 && point.value<=1000000);
     });
     this._historyData=parsed;
@@ -356,6 +356,14 @@ class JarvisPowerFlowCard extends HTMLElement {
       '.hud-head span{color:var(--hud);font-size:12px;letter-spacing:.8px;font-weight:700}.hud-head small{color:#85a9be;font-size:9px;text-align:right}'+
       '.hud-body{padding:12px;min-width:0}.dual{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.readout{min-width:0;padding:7px 9px;background:#102c403d;border:1px solid #20435a;border-radius:6px}'+
       '.readout small{display:block;color:#8fbbd0;font-size:10px}.readout strong{display:block;margin-top:3px;color:#effcff;font-size:15px;overflow-wrap:anywhere}'+
+      '.history-panel{border:1px solid #2789a6;border-radius:10px;padding:12px 17px;margin-top:12px;background:linear-gradient(160deg,#092b40,#061526);box-shadow:inset 0 0 18px #19cbff15}'+
+      '.history-heading{display:flex;justify-content:space-between;gap:10px;align-items:center;color:#a0eaff;font-size:12px;letter-spacing:1.3px;font-weight:700}'+
+      '.history-heading small{font-size:10px;color:#7facbf;letter-spacing:0;font-weight:400}'+
+      '.history-svg{width:100%;max-height:220px;display:block;margin-top:7px}'+
+      '.history-empty{min-height:110px;display:flex;flex-direction:column;gap:9px;align-items:center;justify-content:center;color:#94bfd4;font-size:13px}'+
+      '.history-empty small{font-size:10px;color:#79a4bc}.history-legend{display:flex;justify-content:center;flex-wrap:wrap;gap:15px;font-size:11px;margin-top:3px}'+
+      '.readout strong{font-size:14px!important;line-height:1.15;overflow-wrap:normal;word-break:normal}.readout small{font-size:9px!important}'+
+      '.batt-layout .dual{min-width:0}.hud-panel{min-width:0}.hud-head span{overflow-wrap:anywhere}'+
       '.batt-layout{display:flex;align-items:center;gap:12px}.batt-layout .dual{flex:1}.charge-dial{width:84px;height:84px;flex:none;border-radius:50%;padding:8px;background:conic-gradient(#2de5a3 var(--pct),#20374a 0);box-shadow:0 0 16px #1dda9850}'+
       '.dial-inner{border-radius:50%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#082033}.dial-inner strong{font-size:17px}.dial-inner small{font-size:7px;color:#9dd9c9;text-align:center}'+
       '.solar-track{margin-top:10px;height:8px;overflow:hidden;border-radius:10px;background:#21364a}.solar-fill{height:100%;border-radius:10px;background:linear-gradient(90deg,#f1af32,#ffe987);box-shadow:0 0 10px #ffcc38}'+
@@ -396,6 +404,9 @@ class JarvisPowerFlowCard extends HTMLElement {
       '<rect x="438" y="164" width="244" height="188" rx="10" fill="none" stroke="#66dfff" opacity=".25"/>'+
       '<circle cx="560" cy="245" r="49" stroke="#40dffc" fill="#0e2942" stroke-width="3"/>'+
       '<path d="M570 201 L530 259 H558 L547 291 L599 229 H566 Z" fill="#8ceefe"/>'+
+      '<path d="M448 176 H465 M655 176 H670 M445 333 H466 M653 333 H672" stroke="#56dfff" stroke-width="3" opacity=".75"/>'+
+      '<circle cx="560" cy="245" r="61" stroke="#44dafa" stroke-dasharray="4 12" fill="none" opacity=".45"/>'+
+      '<path d="M463 291 H482 M638 291 H658 M473 300 H647" stroke="#3bb9dd" stroke-width="2" opacity=".35"/>'+
       cap(477,184,"03 / INVERTER","#8eeaff")+
       '<text x="560" y="325" fill="#c9f6ff" text-anchor="middle" font-size="19">'+fmt(this.status("inverter_status"))+'</text>'+
       '<rect x="45" y="302" width="239" height="165" rx="12" fill="url(#jarvisBg)" stroke="#36e4a4" stroke-width="2"/>'+
@@ -432,7 +443,8 @@ class JarvisPowerFlowCard extends HTMLElement {
         '<div class="diagnostic"><span>Grid connected</span><b>'+fmt(connection)+'</b></div>'+
         '<div class="diagnostic"><span>Battery P / V / I</span><b>'+fmt(plausibility.label)+'</b></div>'+
         '<div class="diagnostic"><span>Daily consumption</span><b>'+fmt(this.energy('day_load_energy'))+'</b></div>')+
-      '</div><div class="metrics">'+
+      '</div>'+(this.cfg.show_history===false?'':'<section class="history-panel"><div class="history-heading"><span>10 // ENERGY HISTORY · LAST 24 HOURS</span><small>'+fmt(this._historyStatus||"RECORDED SENSOR VALUES")+'</small></div>'+this.historyMarkup()+'</section>')+
+      '<div class="metrics">'+
       metric("SOLAR TODAY",this.energy("day_pv_energy"),"#f8c54a")+
       metric("HOME TODAY",this.energy("day_load_energy"),"#42bfff")+
       metric("GRID IMPORT TODAY",this.energy("day_grid_import"),"#fd8096")+
