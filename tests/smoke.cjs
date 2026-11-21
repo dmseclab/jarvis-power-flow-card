@@ -156,6 +156,18 @@ assert.equal(card.gridConnection(),'DISCONNECTED');
 assert.equal(card.batteryPlausibility(null,null,null).flag,false);
 
 // Recorded-history renderer: real recorder data only, never simulated curves.
+// v0.7: rounded engineering kW scale must cover all observed values.
+let axis=card.historyBounds([-7100,415,8000]);
+assert.ok(axis.min<=-7100 && axis.max>=8000, 'axis includes signed extrema');
+assert.ok(axis.min<=0 && axis.max>=0, 'axis includes zero');
+assert.ok([1,2,2.5,5,10].some(n=>Number.isInteger(Math.log10(axis.step/n))), 'nice-step scale');
+assert.ok(axis.count>=2 && axis.count<=8, 'manageable vertical tick count');
+axis=card.historyBounds([0,0,0]);
+assert.ok(axis.min<0 && axis.max>0, 'flat signals show a meaningful zero scale');
+axis=card.historyBounds([500,1250,1900]);
+assert.ok(axis.max>=1900 && axis.min<=0, 'import values retained');
+assert.ok(card.shadowRoot.innerHTML.includes('hud-filigree'), 'illuminated framing rendered');
+assert.ok(card.shadowRoot.innerHTML.includes('history-panel'), 'history section present');
 const t0=Date.parse('2026-11-17T08:00:00Z');
 const t1=t0+3600000;
 card._historyStart=t0;
