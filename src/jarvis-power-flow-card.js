@@ -1,9 +1,9 @@
-/* JARVIS Power Flow Card v0.4.0-alpha — read-only cinematic HUD. */
+/* JARVIS Power Flow Card v0.5.0-alpha — read-only cinematic HUD. */
 const JARVIS_DEFAULTS = {
   pv1_power:"sensor.ss_pv1_power", pv2_power:"sensor.ss_pv2_power",
   battery_soc:"sensor.ss_battery_soc", battery_power:"sensor.ss_battery_power",
   battery_voltage:"sensor.ss_battery_voltage", battery_current:"sensor.ss_battery_current",
-  grid_power:"sensor.ss_grid_ct_power", load_power:"sensor.ss_load_power",
+  grid_power:"sensor.ss_grid_ct_power", grid_connected:"binary_sensor.ss_grid_connected", load_power:"sensor.ss_load_power",
   inverter_status:"sensor.ss_overall_state", day_pv_energy:"sensor.ss_day_pv_energy",
   day_load_energy:"sensor.ss_day_load_energy", day_grid_import:"sensor.ss_day_grid_import",
   day_grid_export:"sensor.ss_day_grid_export"
@@ -102,6 +102,23 @@ class JarvisPowerFlowCard extends HTMLElement {
     const missing=keys.filter(k=>values[k]===null);
     return {missing,complete:missing.length===0,label:missing.length===0?"ALL CHANNELS PRESENT":missing.length+" CHANNELS UNAVAILABLE"};
   }
+  gridConnection() {
+    const state=this.entity("grid_connected")?.state;
+    if (state==="on") return "CONNECTED";
+    if (state==="off") return "DISCONNECTED";
+    return "UNKNOWN";
+  }
+  batteryPlausibility(power, voltage, current) {
+    if ([power,voltage,current].some(v=>v===null)) return {label:"NOT CHECKED",note:"Battery P / V / I not all available",flag:false};
+    const vi=Math.abs(voltage*current);
+    const measured=Math.abs(power);
+    if (Math.max(measured,vi)<250) return {label:"LOW POWER",note:"Below comparison threshold",flag:false};
+    const delta=Math.abs(vi-measured);
+    const threshold=Math.max(350,0.4*Math.max(vi,measured));
+    return delta>threshold ?
+      {label:"CHECK P / V / I",note:"Battery power differs from V × I; compare sensor definitions and timestamps",flag:true} :
+      {label:"P / V / I CONSISTENT",note:"Approximate power and V × I agree",flag:false};
+  }
   powerText(value) {
     if (value===null) return "—";
     if (Math.abs(value)>=1000) return (value/1000).toFixed(2)+" kW";
@@ -169,6 +186,8 @@ class JarvisPowerFlowCard extends HTMLElement {
     const flows=this.flowState(solar,home,battery,grid);
     const mode=this.operatingMode(flows,{solar,home,battery,grid});
     const quality=this.dataQuality({solar,home,battery,grid,soc});
+    const connection=this.gridConnection();
+    const plausibility=this.batteryPlausibility(battery,voltage,current);
     const pct=soc===null?null:jClamp(soc,0,100);
     const fmt=(x)=>jEsc(x);
     const metric=(label,value,color)=>'<div class="metric" style="--accent:'+color+'"><span>'+
@@ -203,6 +222,7 @@ class JarvisPowerFlowCard extends HTMLElement {
       '.eyebrow{font-size:10px;letter-spacing:2.5px;color:#71dffc;font-weight:700}'+
       'h2{margin:7px 0 2px;font-size:clamp(19px,3vw,34px);letter-spacing:4px;color:#b5f2ff;text-shadow:0 0 16px #4dd7ff77}'+
       '.subtitle{font-size:10px;letter-spacing:2px;color:#a1c9dd}.live{white-space:nowrap;font-size:10px;color:#46e6a9;font-weight:700}'+
+      '.health-line{display:flex;flex-wrap:wrap;gap:8px;margin:9px 0 4px}.health-chip{border:1px solid #28506b;background:#0a2638;border-radius:6px;padding:7px 10px;color:#aad9e9;font-size:10px}.health-chip b{color:#ecfbff;margin-left:6px}.health-chip.warning{border-color:#bd8b47;color:#ffd88c}.health-chip.warning b{color:#ffd88c}'+
       '.mode-banner{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:12px;margin:12px 0 5px;padding:11px 14px;border:1px solid #285979;background:linear-gradient(110deg,#0a2c41,#081a2c);border-radius:8px}'+
       '.mode-banner strong{display:block;color:#c9faff;font-size:17px;letter-spacing:1.2px}.mode-banner small{display:block;color:#a1cbdb;font-size:10px;margin-top:5px}'+
       '.mode-banner[data-tone="green"]{border-left:4px solid #29e9aa}.mode-banner[data-tone="blue"]{border-left:4px solid #46bfff}.mode-banner[data-tone="amber"]{border-left:4px solid #f8c45b}.mode-banner[data-tone="warn"]{border-left:4px solid #ff9d66}.mode-banner[data-tone="muted"]{border-left:4px solid #7892a5}'+
@@ -245,6 +265,8 @@ class JarvisPowerFlowCard extends HTMLElement {
         '<div class="stat"><small>HOME DEMAND</small><b>'+fmt(this.powerText(home))+'</b></div>'+
       '</div><div class="mode-banner" data-tone="'+fmt(mode.tone)+'"><div><strong>'+fmt(mode.name)+'</strong><small>'+fmt(mode.detail)+'</small></div>'+
       '<div class="quality-pill">'+fmt(quality.label)+(quality.complete?'':' · '+fmt(quality.missing.join(', ')))+'</div></div>'+
+      '<div class="health-line"><div class="health-chip">GRID CONNECTION <b>'+fmt(connection)+'</b></div>'+
+      '<div class="health-chip'+(plausibility.flag?' warning':'')+'">BATTERY SENSOR CHECK <b>'+fmt(plausibility.label)+'</b></div></div>'+
       '<svg class="stage" viewBox="0 0 1120 515" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Solar inverter battery home and grid live energy diagram">'+
       '<defs><linearGradient id="jarvisBg" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#123d57"/><stop offset="1" stop-color="#07192b"/></linearGradient>'+
       '<linearGradient id="jarvisMeter" x1="0" x2="0" y1="1" y2="0"><stop stop-color="#18b97b"/><stop offset="1" stop-color="#64ffd2"/></linearGradient></defs>'+
@@ -288,7 +310,7 @@ class JarvisPowerFlowCard extends HTMLElement {
         '</div>'+miniBar+'<div class="mode">'+fmt(flows.solar.toUpperCase())+'</div>')+
       telemetryPanel('08','GRID MANAGEMENT',gridLabel,'#fb7185',
         '<div class="dual">'+readout('GRID CT POWER',this.powerText(grid))+
-        readout('FLOW STATE',gridLabel)+readout('IMPORT TODAY',this.energy('day_grid_import'))+
+        readout('FLOW STATE',gridLabel)+readout('GRID CONNECTION',connection)+readout('IMPORT TODAY',this.energy('day_grid_import'))+
         readout('EXPORT TODAY',this.energy('day_grid_export'))+'</div>')+
       telemetryPanel('09','HOME & DIAGNOSTICS','LIVE SYSTEM','#57bdff',
         '<div class="diagnostic"><span>House demand</span><b>'+fmt(this.powerText(home))+'</b></div>'+
@@ -297,6 +319,8 @@ class JarvisPowerFlowCard extends HTMLElement {
         '<div class="diagnostic"><span>Grid flow</span><b>'+fmt(gridLabel)+'</b></div>'+
         '<div class="diagnostic"><span>Operating mode</span><b>'+fmt(mode.name)+'</b></div>'+
         '<div class="diagnostic"><span>Sensor quality</span><b>'+fmt(quality.label)+'</b></div>'+
+        '<div class="diagnostic"><span>Grid connected</span><b>'+fmt(connection)+'</b></div>'+
+        '<div class="diagnostic"><span>Battery P / V / I</span><b>'+fmt(plausibility.label)+'</b></div>'+
         '<div class="diagnostic"><span>Daily consumption</span><b>'+fmt(this.energy('day_load_energy'))+'</b></div>')+
       '</div><div class="metrics">'+
       metric("SOLAR TODAY",this.energy("day_pv_energy"),"#f8c54a")+
