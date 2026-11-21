@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.9.0-alpha — 21 November 2026
+
+- **Seamless energy animation:** fixed the SVG dashed flow-line loop. The pattern repeats every 23 units (8 illuminated / 15 gap); animation now travels 46 units (exactly two full patterns) instead of 50, removing the visible jump at each animation cycle.
+- **Power-flow hysteresis:** battery and grid paths use separate activation (~60 W) and release (~25 W) thresholds around the configured 40 W reference, preventing blinking when sensor values hover near the boundary.
+- Opposite-sign reversals must cross the activation threshold before switching to the new direction; no phantom charge/discharge or import/export from small noise.
+- **Read-only telemetry preserved:** raw power, SOC, daily totals, Recorder history, grid polarity, and independent grid-connected status remain unchanged. Hysteresis affects displayed flow states and labels, not source readings.
+- Retained the v0.8 cinematic inverter, layered effects and reduced-motion accessibility handling.
+- Automated JavaScript syntax, source/distribution parity, battery/grid polarity, and threshold regression tests passed. Browser confirmation of the visual jitter fix is still required.
+
 ## v0.8.0-alpha — 21 November 2026
 
 - Rebuilt the central energy scene with a layered inverter housing, soft radial glow, moving orbital instrumentation, active-state beacon and improved neon flow rails.
