@@ -1,4 +1,4 @@
-/* JARVIS Power Flow Card v0.9.0-alpha — read-only cinematic HUD. */
+/* JARVIS Power Flow Card v0.10.0-alpha — read-only cinematic HUD. */
 const JARVIS_DEFAULTS = {
   pv1_power:"sensor.ss_pv1_power", pv2_power:"sensor.ss_pv2_power",
   battery_soc:"sensor.ss_battery_soc", battery_power:"sensor.ss_battery_power",
@@ -391,6 +391,7 @@ class JarvisPowerFlowCard extends HTMLElement {
       '.header{display:flex;gap:12px;justify-content:space-between;align-items:center;border-bottom:1px solid #30829a;padding:0 0 13px;min-width:0}'+
       '.eyebrow{font-size:10px;letter-spacing:2.5px;color:#71dffc;font-weight:700}'+
       'h2{margin:7px 0 2px;font-size:clamp(19px,3vw,34px);letter-spacing:4px;color:#b5f2ff;text-shadow:0 0 16px #4dd7ff77}'+
+      '.header{position:relative}.header:after{content:"";position:absolute;bottom:-1px;left:0;width:210px;height:2px;background:linear-gradient(90deg,#5be8ff,transparent)}'+
       '.subtitle{font-size:10px;letter-spacing:2px;color:#a1c9dd}.live{white-space:nowrap;font-size:10px;color:#46e6a9;font-weight:700}'+
       '.health-line{display:flex;flex-wrap:wrap;gap:8px;margin:9px 0 4px}.health-chip{border:1px solid #28506b;background:#0a2638;border-radius:6px;padding:7px 10px;color:#aad9e9;font-size:10px}.health-chip b{color:#ecfbff;margin-left:6px}.health-chip.warning{border-color:#bd8b47;color:#ffd88c}.health-chip.warning b{color:#ffd88c}'+
       '.mode-banner{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:12px;margin:12px 0 5px;padding:11px 14px;border:1px solid #285979;background:linear-gradient(110deg,#0a2c41,#081a2c);border-radius:8px}'+
@@ -399,8 +400,14 @@ class JarvisPowerFlowCard extends HTMLElement {
       '.quality-pill{font-size:10px;letter-spacing:.3px;text-align:right;color:#91d7ec;white-space:normal;max-width:180px}'+
       '.status{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin:13px 0 3px}'+
       '.stat{padding:8px 10px;border:1px solid #2b6378;background:#091f30b8;border-radius:8px;min-width:0}'+
+      '.stat:nth-child(1){border-top:2px solid #73e7fb}.stat:nth-child(2){border-top:2px solid #f6cb55}.stat:nth-child(3){border-top:2px solid #39e6ac}.stat:nth-child(4){border-top:2px solid #63bafa}'+
+      '.stat b{font-variant-numeric:tabular-nums}.status{margin-top:15px}'+
       '.stat small{display:block;color:#84bed1;font-size:10px;margin-bottom:3px;letter-spacing:.8px}.stat b{display:block;font-size:15px;color:#e9faff;overflow-wrap:anywhere}'+
       '.stage{width:100%;display:block;height:auto;margin-top:4px;overflow:visible}'+
+      '.stage .inverter-vents{filter:drop-shadow(0 0 3px #30bce844)}'+
+      '.mobile-readouts{display:none;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin:8px 0}'+
+      '.mobile-readout{padding:9px 10px;border:1px solid var(--node-color);border-radius:7px;background:#0b2437;min-width:0}'+
+      '.mobile-readout small{font-size:10px;color:#b1c6d5;display:block;margin-bottom:4px}.mobile-readout strong{font-size:15px;color:#f3fdff;overflow-wrap:anywhere}'+
       '.power-rail{filter:blur(3px)}.flow-tag{filter:drop-shadow(0 0 5px #0ac6ef26)}.flow-tag.flowing circle{animation:jarvisBeacon 1.6s ease-in-out infinite}'+
       '.inverter-halo{transform-origin:560px 245px;animation:jarvisOrbit 24s linear infinite}.inverter-breath{animation:jarvisBreathe 4.5s ease-in-out infinite}'+
       '@keyframes jarvisBeacon{50%{opacity:.35}}@keyframes jarvisOrbit{to{transform:rotate(360deg)}}@keyframes jarvisBreathe{50%{opacity:.35}}'+
@@ -436,7 +443,7 @@ class JarvisPowerFlowCard extends HTMLElement {
       '.legend{color:#44e4ad}'+
       '@media(max-width:1050px){.systems{grid-template-columns:repeat(2,minmax(0,1fr))}}'+
       '@media(max-width:650px){.systems{grid-template-columns:minmax(0,1fr)}.hud-head{padding:9px 11px}.shell{padding:12px 15px 16px}.status,.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}'+
-      '.header{flex-wrap:wrap}.mode-banner{grid-template-columns:minmax(0,1fr)}.quality-pill{text-align:left;max-width:unset}.stage{min-width:0}.metric strong{font-size:14px}}'+
+      '.header{flex-wrap:wrap}.mode-banner{grid-template-columns:minmax(0,1fr)}.quality-pill{text-align:left;max-width:unset}.stage{min-width:0}.metric strong{font-size:14px}.mobile-readouts{display:grid}.health-line{gap:6px}.health-chip{font-size:9px;padding:7px 8px}.history-heading{flex-wrap:wrap}.batt-layout{flex-wrap:wrap;justify-content:center}.batt-layout .dual{min-width:190px}}'+
       '@media(prefers-reduced-motion:reduce){.wire.on,.inverter-halo,.inverter-breath,.flow-tag.flowing circle{animation:none}}'+
       '</style><ha-card><div class="shell"><div class="header"><div><div class="eyebrow">STARK INDUSTRIES / LIVE ENERGY TELEMETRY</div>'+
       '<h2>'+fmt(this.cfg.title)+'</h2><div class="subtitle">'+fmt(this.cfg.subtitle)+'</div></div>'+
@@ -480,8 +487,14 @@ class JarvisPowerFlowCard extends HTMLElement {
       '<path d="M455 143 H665 L704 184 V332 L665 373 H455 L416 332 V184 Z" fill="#0b3654" stroke="#3bceef" stroke-width="1.6" opacity=".45"/>'+
       '<rect x="427" y="153" width="266" height="210" rx="17" fill="url(#jarvisCasing)" stroke="#45dcfa" stroke-width="3"/>'+
       '<path d="M445 172 H675 M445 346 H675" fill="none" stroke="#5bdfff" stroke-width="1" opacity=".24"/>'+
+      '<path d="M432 184 V331 M688 184 V331" stroke="#94f1ff" stroke-width="1" opacity=".19"/>'+
+      '<rect x="447" y="199" width="34" height="92" rx="4" fill="#041929" stroke="#2a7f9d" opacity=".88"/>'+
+      '<rect x="639" y="199" width="34" height="92" rx="4" fill="#041929" stroke="#2a7f9d" opacity=".88"/>'+
+      '<path class="inverter-vents" d="M453 210 H474 M453 221 H474 M453 232 H474 M453 243 H474 M453 254 H474 M453 265 H474 M453 276 H474 M645 210 H666 M645 221 H666 M645 232 H666 M645 243 H666 M645 254 H666 M645 265 H666 M645 276 H666" stroke="#43b9d9" stroke-width="2" opacity=".62"/>'+
+      '<path d="M486 202 H504 M617 202 H635 M486 285 H504 M617 285 H635" stroke="#5bdfff" stroke-width="2" opacity=".38"/>'+
       '<rect x="438" y="164" width="244" height="188" rx="10" fill="none" stroke="#66dfff" opacity=".25"/>'+
       '<circle cx="560" cy="245" r="49" stroke="#40dffc" fill="#0e2942" stroke-width="3"/>'+
+      '<circle cx="560" cy="245" r="42" stroke="#2e7593" fill="none" stroke-width="1.5" opacity=".55"/>'+
       '<path d="M570 201 L530 259 H558 L547 291 L599 229 H566 Z" fill="#8ceefe"/>'+
       '<path d="M448 176 H465 M655 176 H670 M445 333 H466 M653 333 H672" stroke="#56dfff" stroke-width="3" opacity=".75"/>'+
       '<circle cx="560" cy="245" r="61" stroke="#44dafa" stroke-dasharray="4 12" fill="none" opacity=".45" class="inverter-halo"/>'+
@@ -491,9 +504,14 @@ class JarvisPowerFlowCard extends HTMLElement {
       '<path d="M514 306 H606" stroke="#3ecfff" stroke-width="2" opacity=".35"/>'+
 
       cap(477,184,"03 / INVERTER","#8eeaff")+
+      '<rect x="499" y="301" width="122" height="42" rx="7" fill="#061a2c" stroke="#26708b" stroke-width="1.2"/>'+
       '<rect x="514" y="308" width="92" height="30" rx="6" fill="#051c30" stroke="#236781" stroke-width="1"/>'+
       '<circle cx="525" cy="323" r="4" fill="'+(isAvailable?'#34efb5':'#fba36e')+'" class="inverter-breath"/>'+
       '<text x="562" y="329" fill="#c9f6ff" text-anchor="middle" font-size="15" font-weight="700">'+fmt(this.status("inverter_status"))+'</text>'+
+      '<text x="560" y="353" text-anchor="middle" fill="#7ab4c9" font-size="8" font-weight="700" letter-spacing="2">SUNSYNK / ENERGY</text>'+
+      '<circle cx="449" cy="191" r="2.5" fill="#43d8f3" opacity=".7"/>'+
+      '<circle cx="670" cy="191" r="2.5" fill="#43d8f3" opacity=".7"/>'+
+      '<path d="M443 317 V328 M677 317 V328" stroke="#23a3c3" stroke-width="3" opacity=".6"/>'+
       '<rect x="45" y="302" width="239" height="165" rx="12" fill="url(#jarvisBg)" stroke="#36e4a4" stroke-width="2"/>'+
       '<rect x="69" y="331" width="65" height="104" rx="6" fill="#071b2a" stroke="#39e9ac" stroke-width="3"/>'+
       '<rect x="79" y="'+(425-(pct??0)*.84)+'" width="45" height="'+((pct??0)*.84)+'" rx="2" fill="url(#jarvisMeter)"/>'+
@@ -505,7 +523,12 @@ class JarvisPowerFlowCard extends HTMLElement {
       '<path d="M958 321 L911 414 H1005 Z M927 375 H991 M919 393 H999 M958 324 V415" fill="none" stroke="#fb6982" stroke-width="5"/>'+
       cap(855,441,"05 / GRID","#ff8497")+txt(855,462,this.powerText(grid),19)+
       '</g>'+
-      '</svg><div class="command-line"><strong>ENERGY INTELLIGENCE / LIVE SYSTEM MODULES</strong></div><div class="systems">'+
+      '</svg><div class="mobile-readouts" aria-label="Accessible power flow readings">'+
+      '<div class="mobile-readout" style="--node-color:#ffd052"><small>SOLAR · '+fmt(flows.solar.toUpperCase())+'</small><strong>'+fmt(this.powerText(solar))+'</strong></div>'+
+      '<div class="mobile-readout" style="--node-color:#70c8ff"><small>HOUSE · '+fmt(flows.home.toUpperCase())+'</small><strong>'+fmt(this.powerText(home))+'</strong></div>'+
+      '<div class="mobile-readout" style="--node-color:#35eea4"><small>BATTERY · '+fmt(flows.battery.toUpperCase())+'</small><strong>'+fmt(this.powerText(battery))+'</strong></div>'+
+      '<div class="mobile-readout" style="--node-color:#ff718d"><small>GRID · '+fmt(flows.grid.toUpperCase())+'</small><strong>'+fmt(this.powerText(grid))+'</strong></div>'+
+      '</div><div class="command-line"><strong>ENERGY INTELLIGENCE / LIVE SYSTEM MODULES</strong></div><div class="systems">'+
       telemetryPanel('06','BATTERY INTELLIGENCE',batteryCaption,'#2de9aa',
         '<div class="batt-layout">'+chargeDial+'<div class="dual">'+
         readout('BATTERY POWER',this.powerText(battery))+readout('VOLTAGE',voltage===null?'—':voltage.toFixed(1)+' V')+
