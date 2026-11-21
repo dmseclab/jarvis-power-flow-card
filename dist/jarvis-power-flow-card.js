@@ -1,4 +1,4 @@
-/* JARVIS Power Flow Card v0.7.0-alpha — read-only cinematic HUD. */
+/* JARVIS Power Flow Card v0.8.0-alpha — read-only cinematic HUD. */
 const JARVIS_DEFAULTS = {
   pv1_power:"sensor.ss_pv1_power", pv2_power:"sensor.ss_pv2_power",
   battery_soc:"sensor.ss_battery_soc", battery_power:"sensor.ss_battery_power",
@@ -333,8 +333,15 @@ class JarvisPowerFlowCard extends HTMLElement {
     const txt=(x,y,text,sz=23,color="#ecfbff",weight=700)=>'<text x="'+x+'" y="'+y+'" fill="'+color+
       '" font-size="'+sz+'" font-weight="'+weight+'">'+fmt(text)+'</text>';
     const wire=(d,color,on,reverse=false)=>'<path d="'+d+'" fill="none" stroke="'+color+
-      '" stroke-width="9" opacity=".13"/><path d="'+d+'" fill="none" stroke="'+color+
-      '" stroke-width="3.5" class="wire '+(on?'on':'')+(reverse?' reverse':'')+'"/>';
+      '" stroke-width="12" opacity="'+(on?'.19':'.08')+'" class="power-rail"/>'+
+      '<path d="'+d+'" fill="none" stroke="'+color+'" stroke-width="2" opacity=".5"/>'+
+      '<path d="'+d+'" fill="none" stroke="'+color+
+      '" stroke-width="4" class="wire '+(on?'on':'')+(reverse?' reverse':'')+'"/>';
+    const flowTag=(x,y,label,value,color,active)=>'<g class="flow-tag'+(active?' flowing':'')+'">'+
+      '<rect x="'+x+'" y="'+y+'" width="134" height="35" rx="7" fill="#071c2c" stroke="'+color+
+      '" stroke-width="1.3" opacity=".97"/><circle cx="'+(x+11)+'" cy="'+(y+11)+'" r="3.4" fill="'+color+'"/>'+
+      '<text x="'+(x+20)+'" y="'+(y+15)+'" fill="'+color+'" font-size="9" font-weight="700" letter-spacing=".7">'+fmt(label)+'</text>'+
+      '<text x="'+(x+11)+'" y="'+(y+29)+'" fill="#e7f9ff" font-size="12" font-weight="700">'+fmt(value)+'</text></g>';
     const solarOn=flows.solar==="generating",homeOn=flows.home==="supplied";
     const gridOn=flows.gridEnabled,battOn=flows.batteryEnabled;
     const gridReverse=flows.gridReverse,battReverse=flows.batteryReverse;
@@ -343,6 +350,14 @@ class JarvisPowerFlowCard extends HTMLElement {
     const telemetryPanel=(num,title,subtitle,color,body)=>'<section class="hud-panel" style="--hud:'+color+'"><div class="hud-head"><span>'+fmt(num+' // '+title)+'</span><small>'+fmt(subtitle)+'</small></div><div class="hud-body">'+body+'</div></section>';
     const readout=(label,value)=>'<div class="readout"><small>'+fmt(label)+'</small><strong>'+fmt(value)+'</strong></div>';
     const battLabel=flows.battery==="discharging"?"DISCHARGING":flows.battery==="charging"?"CHARGING":flows.battery.toUpperCase();
+    // This is a measured low-rate charge, not a claim about the inverter's battery stage.
+    const lowRateCharge=flows.battery==="charging" && battery!==null &&
+      Math.abs(battery)<150 && soc!==null && soc>=99;
+    const batteryCaption=lowRateCharge?"LOW-RATE CHARGE":battLabel;
+    const flowBatteryCaption=flows.battery==="discharging"?"TO INVERTER":
+      flows.battery==="charging"?"TO BATTERY":flows.battery.toUpperCase();
+    const flowGridCaption=flows.grid==="importing"?"GRID TO INVERTER":
+      flows.grid==="exporting"?"INVERTER TO GRID":flows.grid.toUpperCase();
     const gridLabel=flows.grid==="importing"?"IMPORTING":flows.grid==="exporting"?"EXPORTING":flows.grid.toUpperCase();
     const dialValue=pct===null?0:pct;
     const chargeDial='<div class="charge-dial" style="--pct:'+dialValue+'%"><div class="dial-inner"><strong>'+fmt(soc===null?'—':soc.toFixed(1)+'%')+'</strong><small>STATE OF CHARGE</small></div></div>';
@@ -353,6 +368,7 @@ class JarvisPowerFlowCard extends HTMLElement {
       '*,*::before,*::after{box-sizing:border-box}ha-card{display:block;min-width:0;width:100%;overflow:hidden;position:relative;border:1px solid #20c9ec;border-radius:17px;'+
       'background:radial-gradient(ellipse at 53% 22%,#103754 0%,#061c2d 53%,#030b17 100%);box-shadow:inset 0 0 32px #21d8ff11,0 0 18px #0abef21e}'+
       'ha-card:before{content:"";position:absolute;inset:6px;pointer-events:none;border:1px solid #1dc9e71a;clip-path:polygon(0 0,100% 0,100% 94%,97% 100%,0 100%)}'+
+      'ha-card:after{content:"";pointer-events:none;position:absolute;left:13px;right:13px;top:0;height:3px;background:linear-gradient(90deg,transparent,#1fbdec,#8fe8ff,#1fbdec,transparent);opacity:.65}'+
       '.shell{padding:20px clamp(18px,2.4vw,34px) 22px;min-width:0}'+
       '.header{display:flex;gap:12px;justify-content:space-between;align-items:center;border-bottom:1px solid #30829a;padding:0 0 13px;min-width:0}'+
       '.eyebrow{font-size:10px;letter-spacing:2.5px;color:#71dffc;font-weight:700}'+
@@ -367,6 +383,9 @@ class JarvisPowerFlowCard extends HTMLElement {
       '.stat{padding:8px 10px;border:1px solid #2b6378;background:#091f30b8;border-radius:8px;min-width:0}'+
       '.stat small{display:block;color:#84bed1;font-size:10px;margin-bottom:3px;letter-spacing:.8px}.stat b{display:block;font-size:15px;color:#e9faff;overflow-wrap:anywhere}'+
       '.stage{width:100%;display:block;height:auto;margin-top:4px;overflow:visible}'+
+      '.power-rail{filter:blur(3px)}.flow-tag{filter:drop-shadow(0 0 5px #0ac6ef26)}.flow-tag.flowing circle{animation:jarvisBeacon 1.6s ease-in-out infinite}'+
+      '.inverter-halo{transform-origin:560px 245px;animation:jarvisOrbit 24s linear infinite}.inverter-breath{animation:jarvisBreathe 4.5s ease-in-out infinite}'+
+      '@keyframes jarvisBeacon{50%{opacity:.35}}@keyframes jarvisOrbit{to{transform:rotate(360deg)}}@keyframes jarvisBreathe{50%{opacity:.35}}'+
       '.wire{stroke-dasharray:10 15;opacity:.17}.wire.on{opacity:1;stroke-dasharray:8 15;stroke-width:4;filter:drop-shadow(0 0 5px currentColor);animation:jflow 1.4s linear infinite}'+
       '.wire.reverse{animation-direction:reverse}@keyframes jflow{to{stroke-dashoffset:-50}}'+
       '.stage{filter:drop-shadow(0 0 7px #11c5f51a)}.hud-panel{position:relative}.hud-panel:before{content:"";position:absolute;right:5px;top:5px;width:20px;height:20px;border-right:1px solid var(--hud);border-top:1px solid var(--hud);opacity:.55;pointer-events:none}'+
@@ -400,7 +419,7 @@ class JarvisPowerFlowCard extends HTMLElement {
       '@media(max-width:1050px){.systems{grid-template-columns:repeat(2,minmax(0,1fr))}}'+
       '@media(max-width:650px){.systems{grid-template-columns:minmax(0,1fr)}.hud-head{padding:9px 11px}.shell{padding:12px 15px 16px}.status,.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}'+
       '.header{flex-wrap:wrap}.mode-banner{grid-template-columns:minmax(0,1fr)}.quality-pill{text-align:left;max-width:unset}.stage{min-width:0}.metric strong{font-size:14px}}'+
-      '@media(prefers-reduced-motion:reduce){.wire.on{animation:none}}'+
+      '@media(prefers-reduced-motion:reduce){.wire.on,.inverter-halo,.inverter-breath,.flow-tag.flowing circle{animation:none}}'+
       '</style><ha-card><div class="shell"><div class="header"><div><div class="eyebrow">STARK INDUSTRIES / LIVE ENERGY TELEMETRY</div>'+
       '<h2>'+fmt(this.cfg.title)+'</h2><div class="subtitle">'+fmt(this.cfg.subtitle)+'</div></div>'+
       '<div class="live">● '+(isAvailable?'LIVE TELEMETRY':'SOURCE UNAVAILABLE')+' · READ ONLY</div></div>'+
@@ -414,36 +433,49 @@ class JarvisPowerFlowCard extends HTMLElement {
       '<div class="health-line"><div class="health-chip">GRID CONNECTION <b>'+fmt(connection)+'</b></div>'+
       '<div class="health-chip'+(plausibility.flag?' warning':'')+'">BATTERY SENSOR CHECK <b>'+fmt(plausibility.label)+'</b></div></div>'+
       '<svg class="stage" viewBox="0 0 1120 515" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Solar inverter battery home and grid live energy diagram">'+
-      '<defs><linearGradient id="jarvisBg" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#123d57"/><stop offset="1" stop-color="#07192b"/></linearGradient>'+
+      '<defs><radialGradient id="jarvisCoreGlow"><stop stop-color="#31ddff" stop-opacity=".17"/><stop offset="1" stop-color="#31ddff" stop-opacity="0"/></radialGradient>'+
+      '<linearGradient id="jarvisCasing" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#164e69"/><stop offset=".45" stop-color="#0a304b"/><stop offset="1" stop-color="#071829"/></linearGradient>'+
+      '<linearGradient id="jarvisBg" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#123d57"/><stop offset="1" stop-color="#07192b"/></linearGradient>'+
       '<linearGradient id="jarvisMeter" x1="0" x2="0" y1="1" y2="0"><stop stop-color="#18b97b"/><stop offset="1" stop-color="#64ffd2"/></linearGradient></defs>'+
       '<path d="M15 45 L40 18 H1080 L1102 43 V476 L1075 498 H41 L15 473 Z" fill="none" stroke="#276b85" opacity=".72" stroke-width="2"/>'+
       '<path d="M27 54 H205 M905 54 H1090 M27 466 H206 M907 466 H1091" stroke="#31dcfb" opacity=".55" stroke-width="3"/>'+
       '<path class="hud-filigree" d="M41 76 V98 M41 432 V453 M1070 77 V98 M1070 433 V455 M360 41 H430 M693 41 H762 M360 480 H430 M693 480 H762"/>'+
       '<path class="energy-trace" d="M290 78 H340 L367 104 H414 M704 104 H753 L784 78 H824 M290 444 H340 L367 419 H414 M704 419 H753 L784 444 H824"/>'+
       '<circle cx="560" cy="255" r="119" fill="none" stroke="#1dcdfa" stroke-width="1" stroke-dasharray="2 13" opacity=".26"/>'+
+      '<circle cx="560" cy="245" r="175" fill="url(#jarvisCoreGlow)"/>'+
+      '<circle cx="560" cy="245" r="132" class="inverter-halo" fill="none" stroke="#29d3f4" stroke-width="1.5" stroke-dasharray="9 31" opacity=".38"/>'+
 
       wire("M279 143 L428 205","#f2bd39",solarOn)+
       wire("M692 205 L842 143","#44bfff",homeOn)+
       wire("M428 302 L279 381","#32e99e",battOn,battReverse)+
       wire("M842 381 L692 302","#fb6c80",gridOn,gridReverse)+
+      flowTag(310,113,"PV GENERATION",this.powerText(solar),"#ffd052",solarOn)+
+      flowTag(708,113,"HOME DEMAND",this.powerText(home),"#70c8ff",homeOn)+
+      flowTag(310,350,flowBatteryCaption,this.powerText(battery),"#35eea4",battOn)+
+      flowTag(708,350,flowGridCaption,this.powerText(grid),"#ff718d",gridOn)+
       '<g><rect x="45" y="76" width="238" height="165" rx="12" fill="url(#jarvisBg)" stroke="#f6c33e" stroke-width="2"/>'+
       '<path d="M94 128 L195 103 L232 163 L130 185 Z M127 121 L159 175 M160 113 L192 167 M193 105 L225 159 M110 155 L216 128" stroke="#f4c13c" stroke-width="4" fill="none"/>'+
       cap(64,206,"01 / SOLAR","#f5c848")+txt(64,231,this.powerText(solar),22)+
       '<rect x="838" y="64" width="235" height="185" rx="12" fill="url(#jarvisBg)" stroke="#52bfff" stroke-width="2"/>'+
       '<path d="M908 126 L955 87 L1001 126 M922 117 V170 H988 V117 M945 170 V143 H965 V170" stroke="#61bbfa" fill="none" stroke-width="7"/>'+
       cap(857,204,"02 / HOUSE LOAD","#6abfff")+txt(857,233,this.powerText(home),25)+
-      '<rect x="427" y="153" width="266" height="210" rx="17" fill="#0b354e" stroke="#45dcfa" stroke-width="3"/>'+
+      '<path d="M455 143 H665 L704 184 V332 L665 373 H455 L416 332 V184 Z" fill="#0b3654" stroke="#3bceef" stroke-width="1.6" opacity=".45"/>'+
+      '<rect x="427" y="153" width="266" height="210" rx="17" fill="url(#jarvisCasing)" stroke="#45dcfa" stroke-width="3"/>'+
+      '<path d="M445 172 H675 M445 346 H675" fill="none" stroke="#5bdfff" stroke-width="1" opacity=".24"/>'+
       '<rect x="438" y="164" width="244" height="188" rx="10" fill="none" stroke="#66dfff" opacity=".25"/>'+
       '<circle cx="560" cy="245" r="49" stroke="#40dffc" fill="#0e2942" stroke-width="3"/>'+
       '<path d="M570 201 L530 259 H558 L547 291 L599 229 H566 Z" fill="#8ceefe"/>'+
       '<path d="M448 176 H465 M655 176 H670 M445 333 H466 M653 333 H672" stroke="#56dfff" stroke-width="3" opacity=".75"/>'+
-      '<circle cx="560" cy="245" r="61" stroke="#44dafa" stroke-dasharray="4 12" fill="none" opacity=".45"/>'+
+      '<circle cx="560" cy="245" r="61" stroke="#44dafa" stroke-dasharray="4 12" fill="none" opacity=".45" class="inverter-halo"/>'+
+      '<circle cx="560" cy="245" r="70" stroke="#61dfff" stroke-dasharray="2 13" fill="none" opacity=".42" class="inverter-breath"/>'+
       '<path d="M463 291 H482 M638 291 H658 M473 300 H647" stroke="#3bb9dd" stroke-width="2" opacity=".35"/>'+
       '<path d="M448 198 L460 186 H477 M643 186 H661 L673 198 M448 317 L460 329 H477 M643 329 H661 L673 317" stroke="#58dfff" stroke-width="2" opacity=".72" fill="none"/>'+
       '<path d="M514 306 H606" stroke="#3ecfff" stroke-width="2" opacity=".35"/>'+
 
       cap(477,184,"03 / INVERTER","#8eeaff")+
-      '<text x="560" y="325" fill="#c9f6ff" text-anchor="middle" font-size="19">'+fmt(this.status("inverter_status"))+'</text>'+
+      '<rect x="514" y="308" width="92" height="30" rx="6" fill="#051c30" stroke="#236781" stroke-width="1"/>'+
+      '<circle cx="525" cy="323" r="4" fill="'+(isAvailable?'#34efb5':'#fba36e')+'" class="inverter-breath"/>'+
+      '<text x="562" y="329" fill="#c9f6ff" text-anchor="middle" font-size="15" font-weight="700">'+fmt(this.status("inverter_status"))+'</text>'+
       '<rect x="45" y="302" width="239" height="165" rx="12" fill="url(#jarvisBg)" stroke="#36e4a4" stroke-width="2"/>'+
       '<rect x="69" y="331" width="65" height="104" rx="6" fill="#071b2a" stroke="#39e9ac" stroke-width="3"/>'+
       '<rect x="79" y="'+(425-(pct??0)*.84)+'" width="45" height="'+((pct??0)*.84)+'" rx="2" fill="url(#jarvisMeter)"/>'+
@@ -456,10 +488,10 @@ class JarvisPowerFlowCard extends HTMLElement {
       cap(855,441,"05 / GRID","#ff8497")+txt(855,462,this.powerText(grid),19)+
       '</g>'+
       '</svg><div class="command-line"><strong>ENERGY INTELLIGENCE / LIVE SYSTEM MODULES</strong></div><div class="systems">'+
-      telemetryPanel('06','BATTERY INTELLIGENCE',battLabel,'#2de9aa',
+      telemetryPanel('06','BATTERY INTELLIGENCE',batteryCaption,'#2de9aa',
         '<div class="batt-layout">'+chargeDial+'<div class="dual">'+
         readout('BATTERY POWER',this.powerText(battery))+readout('VOLTAGE',voltage===null?'—':voltage.toFixed(1)+' V')+
-        readout('CURRENT',current===null?'—':current.toFixed(1)+' A')+readout('FLOW',flows.battery.toUpperCase())+'</div></div>')+
+        readout('CURRENT',current===null?'—':current.toFixed(1)+' A')+readout('FLOW',batteryCaption)+'</div></div>')+
       telemetryPanel('07','SOLAR INTELLIGENCE','PV STRINGS','#f9c74b',
         '<div class="dual">'+readout('PV STRING 1',this.powerText(a))+readout('PV STRING 2',this.powerText(b))+
         readout('LIVE GENERATION',this.powerText(solar))+readout('DAILY YIELD',this.energy('day_pv_energy'))+
