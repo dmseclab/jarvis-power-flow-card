@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.7.0-alpha — 21 November 2026
+
+- Reworked recorded 24-hour chart to show rounded, engineering-style **kW** tick marks with an explicit unit and zero reference; preserves negative grid/battery power and observed extrema.
+- Increased animation contrast and added layered illuminated HUD framing, decorative circuit traces and inverter accents.
+- Tightened the battery, solar, grid and home intelligence-panel spacing, including a shorter diagnostic line height.
+- Kept the same source telemetry, polarity settings, read-only operation, recorder refresh interval and bounded chart point count.
+- **No source spikes are automatically suppressed or reconstructed.** Source anomalies remain visible for comparison against Sunsynk and Recorder.
+- Automated syntax, distribution and smoke tests required before HACS redownload; browser layout confirmation pending.
+
+
 ## v0.6.0-alpha — 21 November 2026
 
 - Added read-only 24-hour power-history panel, sourced from Home Assistant Recorder via the authenticated history API.
