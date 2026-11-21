@@ -189,11 +189,13 @@ class JarvisPowerFlowCard extends HTMLElement {
     const modes=this._flowLatches||(this._flowLatches={});
     const gate=(key,value)=>{
       if(value===null || !Number.isFinite(value)){modes[key]=false;return false;}
-      const previous=modes[key]||false;
+      const previous=modes[key]||{active:false,sign:0};
+      const sign=Math.sign(value);
       const on=Math.max(t+15,t*1.5);
       const off=Math.max(0,t-15);
-      const next=Math.abs(value)>(previous?off:on);
-      modes[key]=next;
+      const continuing=previous.active&&previous.sign===sign;
+      const next=Math.abs(value)>(continuing?off:on);
+      modes[key]={active:next,sign:next?sign:0};
       return next;
     };
     const batteryActive=gate("battery",battery);
