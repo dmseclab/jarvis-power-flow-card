@@ -440,7 +440,7 @@ class JarvisPowerFlowCard extends HTMLElement {
       '.legend{color:#44e4ad}'+
       '@media(max-width:1050px){.systems{grid-template-columns:repeat(2,minmax(0,1fr))}}'+
       '@media(max-width:650px){.systems{grid-template-columns:minmax(0,1fr)}.hud-head{padding:9px 11px}.shell{padding:12px 15px 16px}.status,.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}'+
-      '.header{flex-wrap:wrap}.mode-banner{grid-template-columns:minmax(0,1fr)}.quality-pill{text-align:left;max-width:unset}.stage{min-width:0}.metric strong{font-size:14px}}'+
+      '.header{flex-wrap:wrap}.mode-banner{grid-template-columns:minmax(0,1fr)}.quality-pill{text-align:left;max-width:unset}.stage{min-width:0}.metric strong{font-size:14px}.mobile-readouts{display:grid}.health-line{gap:6px}.health-chip{font-size:9px;padding:7px 8px}.history-heading{flex-wrap:wrap}.batt-layout{flex-wrap:wrap;justify-content:center}.batt-layout .dual{min-width:190px}}'+
       '@media(prefers-reduced-motion:reduce){.wire.on,.inverter-halo,.inverter-breath,.flow-tag.flowing circle{animation:none}}'+
       '</style><ha-card><div class="shell"><div class="header"><div><div class="eyebrow">STARK INDUSTRIES / LIVE ENERGY TELEMETRY</div>'+
       '<h2>'+fmt(this.cfg.title)+'</h2><div class="subtitle">'+fmt(this.cfg.subtitle)+'</div></div>'+
@@ -516,7 +516,12 @@ class JarvisPowerFlowCard extends HTMLElement {
       '<path d="M958 321 L911 414 H1005 Z M927 375 H991 M919 393 H999 M958 324 V415" fill="none" stroke="#fb6982" stroke-width="5"/>'+
       cap(855,441,"05 / GRID","#ff8497")+txt(855,462,this.powerText(grid),19)+
       '</g>'+
-      '</svg><div class="command-line"><strong>ENERGY INTELLIGENCE / LIVE SYSTEM MODULES</strong></div><div class="systems">'+
+      '</svg><div class="mobile-readouts" aria-label="Accessible power flow readings">'+
+      '<div class="mobile-readout" style="--node-color:#ffd052"><small>SOLAR · '+fmt(flows.solar.toUpperCase())+'</small><strong>'+fmt(this.powerText(solar))+'</strong></div>'+
+      '<div class="mobile-readout" style="--node-color:#70c8ff"><small>HOUSE · '+fmt(flows.home.toUpperCase())+'</small><strong>'+fmt(this.powerText(home))+'</strong></div>'+
+      '<div class="mobile-readout" style="--node-color:#35eea4"><small>BATTERY · '+fmt(flows.battery.toUpperCase())+'</small><strong>'+fmt(this.powerText(battery))+'</strong></div>'+
+      '<div class="mobile-readout" style="--node-color:#ff718d"><small>GRID · '+fmt(flows.grid.toUpperCase())+'</small><strong>'+fmt(this.powerText(grid))+'</strong></div>'+
+      '</div><div class="command-line"><strong>ENERGY INTELLIGENCE / LIVE SYSTEM MODULES</strong></div><div class="systems">'+
       telemetryPanel('06','BATTERY INTELLIGENCE',batteryCaption,'#2de9aa',
         '<div class="batt-layout">'+chargeDial+'<div class="dual">'+
         readout('BATTERY POWER',this.powerText(battery))+readout('VOLTAGE',voltage===null?'—':voltage.toFixed(1)+' V')+
