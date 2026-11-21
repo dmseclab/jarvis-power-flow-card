@@ -1,4 +1,4 @@
-/* JARVIS Power Flow Card v0.6.0-alpha — read-only cinematic HUD. */
+/* JARVIS Power Flow Card v0.7.0-alpha — read-only cinematic HUD. */
 const JARVIS_DEFAULTS = {
   pv1_power:"sensor.ss_pv1_power", pv2_power:"sensor.ss_pv2_power",
   battery_soc:"sensor.ss_battery_soc", battery_power:"sensor.ss_battery_power",
@@ -82,6 +82,19 @@ class JarvisPowerFlowCard extends HTMLElement {
     this._historyStart=start.getTime();
     this._historyEnd=end.getTime();
   }
+  historyBounds(values) {
+    let lo=0,hi=0;
+    for(const v of values){if(v<lo)lo=v;if(v>hi)hi=v;}
+    const span=Math.max(200,hi-lo);
+    const wanted=span/4;
+    const magnitude=Math.pow(10,Math.floor(Math.log10(wanted)));
+    const steps=[1,2,2.5,5,10];
+    const step=steps.find(n=>n*magnitude>=wanted)*magnitude;
+    // Four or five readable intervals; do not exclude observed extrema.
+    const min=Math.floor(lo/step)*step,max=Math.ceil(hi/step)*step;
+    if(min===max)return {min:min-step,max:max+step,step,count:2};
+    return {min,max,step,count:Math.round((max-min)/step)};
+  }
   historyMarkup() {
     const keys=this.historyKeys(), data=this._historyData||{};
     const palette=["#ffc747","#f8a45a","#55baff","#fa7086","#32e6a1"];
@@ -97,20 +110,22 @@ class JarvisPowerFlowCard extends HTMLElement {
     const keyHtml=series.map(s=>'<span style="color:'+s.color+'">● '+s.title+'</span>').join("");
     if (!all.length) return '<div class="history-empty">'+jEsc(this._historyStatus||"WAITING FOR HISTORY")+
       '<small>Requires Home Assistant Recorder history for these power sensors</small></div><div class="history-legend">'+keyHtml+'</div>';
-    let low=0,high=0;
-    for(const value of all){if(value<low)low=value;if(value>high)high=value;}
-    const min=low===high?low-100:low, max=low===high?high+100:high;
-    const width=1060,height=215,left=67,right=1037,top=16,bottom=183;
+    // Engineering-style rounded kW axis. Include zero, preserve signed values,
+    // never clamp or suppress a genuine source spike.
+    const bounds=this.historyBounds(all);
+    const min=bounds.min,max=bounds.max;
+    const left=78,right=1037,top=17,bottom=182;
     const xmin=this._historyStart || Date.now()-86400000;
     const xmax=this._historyEnd || Date.now();
     const x=t=>left+(t-xmin)/(xmax-xmin)*(right-left);
     const y=v=>top+(max-v)/(max-min)*(bottom-top);
-    const fmtV=v=>Math.abs(v)>=1000?(v/1000).toFixed(1)+"k":Math.round(v)+"";
-    const axes=[0,.5,1].map(r=>{
-      const val=min+r*(max-min), yy=y(val);
+    const axes=Array.from({length:bounds.count+1},(_,i)=>{
+      const val=min+i*bounds.step, yy=y(val);
+      const tick=Math.abs(val)<1e-7?0:val/1000;
+      const label=tick.toFixed(bounds.step<1000?2:1).replace(/\\.?0+$/,"");
       return '<line x1="'+left+'" x2="'+right+'" y1="'+yy.toFixed(1)+'" y2="'+yy.toFixed(1)+
-        '" stroke="#315069" stroke-width="1"/><text x="59" y="'+(yy+4).toFixed(1)+
-        '" text-anchor="end" fill="#8fbbcc" font-size="13">'+jEsc(fmtV(val))+'</text>';
+        '" stroke="#315069" stroke-width="1"/><text x="69" y="'+(yy+4).toFixed(1)+
+        '" text-anchor="end" fill="#9bcfe1" font-size="13">'+jEsc(label)+'</text>';
     }).join("");
     const paths=series.map(s=>{
       // Limit SVG point density; retain the first and last sample for each slice.
@@ -143,7 +158,7 @@ class JarvisPowerFlowCard extends HTMLElement {
         jEsc(label)+'</text>';
     }).join("");
     return '<svg class="history-svg" viewBox="0 0 1060 215" role="img" aria-label="Last 24 hours of recorded power data">'+
-      axes+'<line x1="'+left+'" x2="'+right+'" y1="'+y(0).toFixed(1)+'" y2="'+y(0).toFixed(1)+
+      '<text x="18" y="15" fill="#8edaf0" font-size="12">kW</text>'+axes+'<line x1="'+left+'" x2="'+right+'" y1="'+y(0).toFixed(1)+'" y2="'+y(0).toFixed(1)+
       '" stroke="#70b7ce" stroke-width="1.5" stroke-dasharray="5 6"/>'+
       paths+tick+'</svg><div class="history-legend">'+keyHtml+'</div>';
   }
