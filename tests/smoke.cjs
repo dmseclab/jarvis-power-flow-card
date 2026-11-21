@@ -156,6 +156,36 @@ assert.equal(card.gridConnection(),'DISCONNECTED');
 assert.equal(card.batteryPlausibility(null,null,null).flag,false);
 
 // Recorded-history renderer: real recorder data only, never simulated curves.
+// v0.8: detailed read-only cinematic scene and directional labels.
+card.setConfig({battery_positive_is_discharge:true,grid_positive_is_import:true});
+card.hass={states:{
+  'sensor.ss_overall_state':{state:'ok',attributes:{}},
+  'sensor.ss_pv1_power':{state:'354',attributes:{unit_of_measurement:'W'}},
+  'sensor.ss_pv2_power':{state:'330',attributes:{unit_of_measurement:'W'}},
+  'sensor.ss_load_power':{state:'2070',attributes:{unit_of_measurement:'W'}},
+  'sensor.ss_battery_power':{state:'-53',attributes:{unit_of_measurement:'W'}},
+  'sensor.ss_battery_voltage':{state:'55.8',attributes:{unit_of_measurement:'V'}},
+  'sensor.ss_battery_current':{state:'-0.9',attributes:{unit_of_measurement:'A'}},
+  'sensor.ss_battery_soc':{state:'100',attributes:{unit_of_measurement:'%'}},
+  'sensor.ss_grid_ct_power':{state:'1520',attributes:{unit_of_measurement:'W'}},
+  'binary_sensor.ss_grid_connected':{state:'on',attributes:{}}
+}};
+let cinematic=card.shadowRoot.innerHTML;
+for(const expected of ['LOW-RATE CHARGE','TO BATTERY','GRID TO INVERTER','PV GENERATION','HOME DEMAND','jarvisCoreGlow','inverter-halo']){
+  assert.ok(cinematic.includes(expected),'cinematic scene must include '+expected);
+}
+assert.ok(cinematic.includes('class="wire on'), 'active measured energy paths remain animated');
+assert.ok(cinematic.includes('GRID IMPORT + CHARGING'), 'measured charging mode is unchanged');
+assert.ok(!cinematic.includes('hass.callService'), 'v0.8 does not control inverter');
+card.hass={states:{
+  ...card._hass.states,
+  'sensor.ss_battery_power':{state:'3200',attributes:{unit_of_measurement:'W'}},
+  'sensor.ss_grid_ct_power':{state:'-800',attributes:{unit_of_measurement:'W'}}
+}};
+cinematic=card.shadowRoot.innerHTML;
+assert.ok(cinematic.includes('TO INVERTER'), 'discharging label follows power sign');
+assert.ok(cinematic.includes('INVERTER TO GRID'), 'export label follows configured grid sign');
+assert.ok(cinematic.includes('wire on reverse'), 'directional wiring remains enabled');
 // v0.7: rounded engineering kW scale must cover all observed values.
 let axis=card.historyBounds([-7100,415,8000]);
 assert.ok(axis.min<=-7100 && axis.max>=8000, 'axis includes signed extrema');
