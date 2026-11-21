@@ -3,7 +3,9 @@ title: J.A.R.V.I.S. / ENERGY COMMAND
 minimum_flow_w: 40
 # Verified 20 Nov 2026: positive battery power was discharging to the house.
 battery_positive_is_discharge: true
-# Grid import/export sign is not verified yet; leave disabled.
+# Verified against Sunsynk reference on 21 Nov 2026:
+# positive grid CT power was an active Eskom grid import.
+grid_positive_is_import: true
 entities:
   pv1_power: sensor.ss_pv1_power
   pv2_power: sensor.ss_pv2_power
