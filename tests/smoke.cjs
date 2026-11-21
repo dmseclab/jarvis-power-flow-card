@@ -154,4 +154,47 @@ assert.ok(card.shadowRoot.innerHTML.includes('CHECK P / V / I'));
 card.hass={states:{'binary_sensor.ss_grid_connected':{state:'off',attributes:{}}}};
 assert.equal(card.gridConnection(),'DISCONNECTED');
 assert.equal(card.batteryPlausibility(null,null,null).flag,false);
-console.log('JARVIS smoke test passed');
+
+// Recorded-history renderer: real recorder data only, never simulated curves.
+const t0=Date.parse('2026-11-21T08:00:00Z');
+const t1=t0+3600000;
+card._historyStart=t0;
+card._historyEnd=t1;
+card._historyData={
+  'sensor.ss_pv1_power':[
+    {time:t0,value:0},
+    {time:t0+900000,value:500},
+    {time:t0+1800000,value:1200}
+  ],
+  'sensor.ss_grid_ct_power':[
+    {time:t0,value:-300},
+    {time:t0+900000,value:150}
+  ]
+};
+let plot=card.historyMarkup();
+assert.ok(plot.includes('polyline'), 'recorded points render as actual lines');
+assert.ok(plot.includes('PV1'), 'chart legend includes PV1');
+assert.ok(plot.includes('GRID'), 'chart legend includes grid');
+card._historyData={};
+plot=card.historyMarkup();
+assert.ok(plot.includes('WAITING FOR HISTORY') || plot.includes('RECORDED HISTORY'), 'missing recorder data is clearly labeled');
+assert.ok(!plot.includes('<polyline'), 'empty recorder response never invents a line');
+assert.equal(card.historyKeys().length,5,'five monitored power streams');
+card._hass={states:{'sensor.ss_pv1_power':{state:'500',attributes:{unit_of_measurement:'W'}}},
+  callApi:async (method,url)=>{
+    assert.equal(method,'GET');
+    assert.ok(url.includes('history/period/'));
+    assert.ok(url.includes('filter_entity_id='));
+    return [[
+      {entity_id:'sensor.ss_pv1_power',state:'0',last_changed:new Date(t0).toISOString()},
+      {state:'200',last_changed:new Date(t0+600000).toISOString()},
+      {state:'unavailable',last_changed:new Date(t0+700000).toISOString()}
+    ]];
+  }
+};
+card.loadHistory(['sensor.ss_pv1_power']).then(()=>{
+  assert.equal(card._historyData['sensor.ss_pv1_power'].length,0,
+    'out-of-window fixture should not appear in a current 24 hour chart');
+  console.log('JARVIS smoke test passed');
+}).catch(err=>{console.error(err);process.exitCode=1;});
+
