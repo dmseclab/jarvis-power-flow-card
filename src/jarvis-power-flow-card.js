@@ -1,4 +1,4 @@
-/* JARVIS Power Flow Card v0.7.0-alpha — read-only cinematic HUD. */
+/* JARVIS Power Flow Card v0.8.0-alpha — read-only cinematic HUD. */
 const JARVIS_DEFAULTS = {
   pv1_power:"sensor.ss_pv1_power", pv2_power:"sensor.ss_pv2_power",
   battery_soc:"sensor.ss_battery_soc", battery_power:"sensor.ss_battery_power",
@@ -333,8 +333,15 @@ class JarvisPowerFlowCard extends HTMLElement {
     const txt=(x,y,text,sz=23,color="#ecfbff",weight=700)=>'<text x="'+x+'" y="'+y+'" fill="'+color+
       '" font-size="'+sz+'" font-weight="'+weight+'">'+fmt(text)+'</text>';
     const wire=(d,color,on,reverse=false)=>'<path d="'+d+'" fill="none" stroke="'+color+
-      '" stroke-width="9" opacity=".13"/><path d="'+d+'" fill="none" stroke="'+color+
-      '" stroke-width="3.5" class="wire '+(on?'on':'')+(reverse?' reverse':'')+'"/>';
+      '" stroke-width="12" opacity="'+(on?'.19':'.08')+'" class="power-rail"/>'+
+      '<path d="'+d+'" fill="none" stroke="'+color+'" stroke-width="2" opacity=".5"/>'+
+      '<path d="'+d+'" fill="none" stroke="'+color+
+      '" stroke-width="4" class="wire '+(on?'on':'')+(reverse?' reverse':'')+'"/>';
+    const flowTag=(x,y,label,value,color,active)=>'<g class="flow-tag'+(active?' flowing':'')+'">'+
+      '<rect x="'+x+'" y="'+y+'" width="134" height="35" rx="7" fill="#071c2c" stroke="'+color+
+      '" stroke-width="1.3" opacity=".97"/><circle cx="'+(x+11)+'" cy="'+(y+11)+'" r="3.4" fill="'+color+'"/>'+
+      '<text x="'+(x+20)+'" y="'+(y+15)+'" fill="'+color+'" font-size="9" font-weight="700" letter-spacing=".7">'+fmt(label)+'</text>'+
+      '<text x="'+(x+11)+'" y="'+(y+29)+'" fill="#e7f9ff" font-size="12" font-weight="700">'+fmt(value)+'</text></g>';
     const solarOn=flows.solar==="generating",homeOn=flows.home==="supplied";
     const gridOn=flows.gridEnabled,battOn=flows.batteryEnabled;
     const gridReverse=flows.gridReverse,battReverse=flows.batteryReverse;
@@ -343,6 +350,14 @@ class JarvisPowerFlowCard extends HTMLElement {
     const telemetryPanel=(num,title,subtitle,color,body)=>'<section class="hud-panel" style="--hud:'+color+'"><div class="hud-head"><span>'+fmt(num+' // '+title)+'</span><small>'+fmt(subtitle)+'</small></div><div class="hud-body">'+body+'</div></section>';
     const readout=(label,value)=>'<div class="readout"><small>'+fmt(label)+'</small><strong>'+fmt(value)+'</strong></div>';
     const battLabel=flows.battery==="discharging"?"DISCHARGING":flows.battery==="charging"?"CHARGING":flows.battery.toUpperCase();
+    // This is a measured low-rate charge, not a claim about the inverter's battery stage.
+    const lowRateCharge=flows.battery==="charging" && battery!==null &&
+      Math.abs(battery)<150 && soc!==null && soc>=99;
+    const batteryCaption=lowRateCharge?"LOW-RATE CHARGE":battLabel;
+    const flowBatteryCaption=flows.battery==="discharging"?"TO INVERTER":
+      flows.battery==="charging"?"TO BATTERY":flows.battery.toUpperCase();
+    const flowGridCaption=flows.grid==="importing"?"GRID TO INVERTER":
+      flows.grid==="exporting"?"INVERTER TO GRID":flows.grid.toUpperCase();
     const gridLabel=flows.grid==="importing"?"IMPORTING":flows.grid==="exporting"?"EXPORTING":flows.grid.toUpperCase();
     const dialValue=pct===null?0:pct;
     const chargeDial='<div class="charge-dial" style="--pct:'+dialValue+'%"><div class="dial-inner"><strong>'+fmt(soc===null?'—':soc.toFixed(1)+'%')+'</strong><small>STATE OF CHARGE</small></div></div>';
@@ -426,6 +441,10 @@ class JarvisPowerFlowCard extends HTMLElement {
       wire("M692 205 L842 143","#44bfff",homeOn)+
       wire("M428 302 L279 381","#32e99e",battOn,battReverse)+
       wire("M842 381 L692 302","#fb6c80",gridOn,gridReverse)+
+      flowTag(310,113,"PV GENERATION",this.powerText(solar),"#ffd052",solarOn)+
+      flowTag(708,113,"HOME DEMAND",this.powerText(home),"#70c8ff",homeOn)+
+      flowTag(310,350,flowBatteryCaption,this.powerText(battery),"#35eea4",battOn)+
+      flowTag(708,350,flowGridCaption,this.powerText(grid),"#ff718d",gridOn)+
       '<g><rect x="45" y="76" width="238" height="165" rx="12" fill="url(#jarvisBg)" stroke="#f6c33e" stroke-width="2"/>'+
       '<path d="M94 128 L195 103 L232 163 L130 185 Z M127 121 L159 175 M160 113 L192 167 M193 105 L225 159 M110 155 L216 128" stroke="#f4c13c" stroke-width="4" fill="none"/>'+
       cap(64,206,"01 / SOLAR","#f5c848")+txt(64,231,this.powerText(solar),22)+
@@ -456,10 +475,10 @@ class JarvisPowerFlowCard extends HTMLElement {
       cap(855,441,"05 / GRID","#ff8497")+txt(855,462,this.powerText(grid),19)+
       '</g>'+
       '</svg><div class="command-line"><strong>ENERGY INTELLIGENCE / LIVE SYSTEM MODULES</strong></div><div class="systems">'+
-      telemetryPanel('06','BATTERY INTELLIGENCE',battLabel,'#2de9aa',
+      telemetryPanel('06','BATTERY INTELLIGENCE',batteryCaption,'#2de9aa',
         '<div class="batt-layout">'+chargeDial+'<div class="dual">'+
         readout('BATTERY POWER',this.powerText(battery))+readout('VOLTAGE',voltage===null?'—':voltage.toFixed(1)+' V')+
-        readout('CURRENT',current===null?'—':current.toFixed(1)+' A')+readout('FLOW',flows.battery.toUpperCase())+'</div></div>')+
+        readout('CURRENT',current===null?'—':current.toFixed(1)+' A')+readout('FLOW',batteryCaption)+'</div></div>')+
       telemetryPanel('07','SOLAR INTELLIGENCE','PV STRINGS','#f9c74b',
         '<div class="dual">'+readout('PV STRING 1',this.powerText(a))+readout('PV STRING 2',this.powerText(b))+
         readout('LIVE GENERATION',this.powerText(solar))+readout('DAILY YIELD',this.energy('day_pv_energy'))+
