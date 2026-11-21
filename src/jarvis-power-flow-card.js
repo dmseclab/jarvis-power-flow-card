@@ -96,6 +96,53 @@ class JarvisPowerFlowCard extends HTMLElement {
     if(min===max)return {min:min-step,max:max+step,step,count:2};
     return {min,max,step,count:Math.round((max-min)/step)};
   }
+  miniHistoryMarkup(keys,label,colors) {
+    const end=this._historyEnd||Date.now(), start=end-6*3600000;
+    const data=this._historyData||{}, lines=[];
+    for(let i=0;i<keys.length;i++) {
+      const entityId=this.cfg.entities[keys[i]];
+      const samples=(data[entityId]||[]).filter(p=>p.time>=start && p.time<=end &&
+        Number.isFinite(p.value)).slice(-1800);
+      if(samples.length) lines.push({samples,color:colors[i]||"#6de8fc",key:keys[i]});
+    }
+    const title='<div class="mini-title">'+jEsc(label)+' · LAST 6H</div>';
+    if(!lines.length) return '<div class="mini-history">'+title+
+      '<div class="mini-empty">NO RECORDED TREND</div></div>';
+    let minimum=0,maximum=0;
+    for(const line of lines)for(const point of line.samples){
+      if(point.value<minimum)minimum=point.value;
+      if(point.value>maximum)maximum=point.value;
+    }
+    if(minimum===maximum){minimum-=100;maximum+=100;}
+    const x=t=>4+232*(t-start)/(end-start);
+    const y=v=>5+34*(maximum-v)/(maximum-minimum);
+    const baseline=y(0);
+    const markup=lines.map(line=>{
+      const groups=[],filtered=[];
+      const stride=Math.max(1,Math.ceil(line.samples.length/170));
+      for(let i=0;i<line.samples.length;i+=stride)filtered.push(line.samples[i]);
+      const last=line.samples[line.samples.length-1];
+      if(filtered[filtered.length-1]!==last)filtered.push(last);
+      let sequence=[],previous=null;
+      for(const pt of filtered){
+        if(previous!==null && pt.time-previous>45*60000){
+          if(sequence.length)groups.push(sequence);
+          sequence=[];
+        }
+        sequence.push(pt);previous=pt.time;
+      }
+      if(sequence.length)groups.push(sequence);
+      return groups.map(group=>group.length>1?
+        '<polyline points="'+group.map(p=>x(p.time).toFixed(1)+','+y(p.value).toFixed(1)).join(' ')+
+        '" fill="none" stroke="'+line.color+'" stroke-width="2" vector-effect="non-scaling-stroke"/>':
+        '<circle cx="'+x(group[0].time).toFixed(1)+'" cy="'+y(group[0].value).toFixed(1)+
+        '" r="1.5" fill="'+line.color+'"/>').join("");
+    }).join("");
+    return '<div class="mini-history">'+title+
+      '<svg viewBox="0 0 240 44" preserveAspectRatio="none" role="img" aria-label="'+jEsc(label)+' recorded trend last six hours">'+
+      '<line x1="4" x2="236" y1="'+baseline.toFixed(1)+'" y2="'+baseline.toFixed(1)+
+      '" stroke="#50748b" stroke-dasharray="3 5" opacity=".7"/>'+markup+'</svg></div>';
+  }
   historyMarkup() {
     const keys=this.historyKeys(), data=this._historyData||{};
     const palette=["#ffc747","#f8a45a","#55baff","#fa7086","#32e6a1"];
@@ -440,6 +487,9 @@ class JarvisPowerFlowCard extends HTMLElement {
       '.hud-head span{color:var(--hud);font-size:12px;letter-spacing:.8px;font-weight:700}.hud-head small{color:#85a9be;font-size:9px;text-align:right}'+
       '.hud-body{padding:9px;min-width:0}.dual{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.readout{min-width:0;padding:7px 8px;background:#102c403d;border:1px solid #20435a;border-radius:6px}'+
       '.readout small{display:block;color:#8fbbd0;font-size:10px}.readout strong{display:block;margin-top:3px;color:#effcff;font-size:15px;overflow-wrap:anywhere}'+
+      '.mini-history{margin-top:10px;padding:6px 8px 4px;border:1px solid #22465a;background:#071a2b;border-radius:6px}'+
+      '.mini-title{font-size:9px;letter-spacing:.75px;color:#91c7d8;margin-bottom:3px;font-weight:700}'+
+      '.mini-history svg{display:block;width:100%;height:44px}.mini-empty{font-size:10px;color:#668aa1;height:44px;display:flex;align-items:center;justify-content:center}'+
       '.history-panel{border:1px solid #2789a6;border-radius:10px;padding:12px 17px;margin-top:12px;background:linear-gradient(160deg,#092b40,#061526);box-shadow:inset 0 0 18px #19cbff15}'+
       '.history-heading{display:flex;justify-content:space-between;gap:10px;align-items:center;color:#a0eaff;font-size:12px;letter-spacing:1.3px;font-weight:700}'+
       '.history-heading small{font-size:10px;color:#7facbf;letter-spacing:0;font-weight:400}'+
@@ -545,15 +595,18 @@ class JarvisPowerFlowCard extends HTMLElement {
       telemetryPanel('06','BATTERY INTELLIGENCE',batteryCaption,'#2de9aa',
         '<div class="batt-layout">'+chargeDial+'<div class="dual">'+
         readout('BATTERY POWER',this.powerText(battery))+readout('VOLTAGE',voltage===null?'—':voltage.toFixed(1)+' V')+
-        readout('CURRENT',current===null?'—':current.toFixed(1)+' A')+readout('FLOW',batteryCaption)+'</div></div>')+
+        readout('CURRENT',current===null?'—':current.toFixed(1)+' A')+readout('FLOW',batteryCaption)+'</div></div>'+
+        this.miniHistoryMarkup(['battery_power'],'BATTERY POWER',['#37e7a6']))+
       telemetryPanel('07','SOLAR INTELLIGENCE','PV STRINGS','#f9c74b',
         '<div class="dual">'+readout('PV STRING 1',this.powerText(a))+readout('PV STRING 2',this.powerText(b))+
         readout('LIVE GENERATION',this.powerText(solar))+readout('DAILY YIELD',this.energy('day_pv_energy'))+
-        '</div>'+miniBar+'<div class="mode">'+fmt(flows.solar.toUpperCase())+'</div>')+
+        '</div>'+miniBar+'<div class="mode">'+fmt(flows.solar.toUpperCase())+'</div>'+
+        this.miniHistoryMarkup(['pv1_power','pv2_power'],'PV1 / PV2 POWER',['#ffca48','#f59245']))+
       telemetryPanel('08','GRID MANAGEMENT',gridLabel,'#fb7185',
         '<div class="dual">'+readout('GRID CT POWER',this.powerText(grid))+
         readout('FLOW STATE',gridLabel)+readout('GRID CONNECTION',connection)+readout('IMPORT TODAY',this.energy('day_grid_import'))+
-        readout('EXPORT TODAY',this.energy('day_grid_export'))+'</div>')+
+        readout('EXPORT TODAY',this.energy('day_grid_export'))+'</div>'+
+        this.miniHistoryMarkup(['grid_power'],'GRID CT POWER',['#fb7185']))+
       telemetryPanel('09','HOME & DIAGNOSTICS','LIVE SYSTEM','#57bdff',
         '<div class="diagnostic"><span>House demand</span><b>'+fmt(this.powerText(home))+'</b></div>'+
         '<div class="diagnostic"><span>Inverter status</span><b>'+fmt(this.status('inverter_status'))+'</b></div>'+
