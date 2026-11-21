@@ -379,8 +379,19 @@ class JarvisPowerFlowCard extends HTMLElement {
     const gridLabel=flows.grid==="importing"?"IMPORTING":flows.grid==="exporting"?"EXPORTING":flows.grid.toUpperCase();
     const dialValue=pct===null?0:pct;
     const chargeDial='<div class="charge-dial" style="--pct:'+dialValue+'%"><div class="dial-inner"><strong>'+fmt(soc===null?'—':soc.toFixed(1)+'%')+'</strong><small>STATE OF CHARGE</small></div></div>';
-    const barValue=solar===null?0:jClamp(solar/10000*100,0,100);
-    const miniBar='<div class="solar-track"><div class="solar-fill" style="width:'+barValue+'%"></div></div>';
+    // PV1/PV2 bar is a relative contribution, NOT capacity utilisation.
+    const pv1=a===null?null:Math.max(0,a),pv2=b===null?null:Math.max(0,b);
+    const pvComplete=pv1!==null&&pv2!==null;
+    const pvTotal=pvComplete?pv1+pv2:null;
+    const pv1Share=pvTotal>0?pv1/pvTotal*100:0;
+    const pv2Share=pvTotal>0?100-pv1Share:0;
+    const pvShares=pvTotal===null?'PV CONTRIBUTION · DATA UNAVAILABLE':
+      pvTotal<=0?'PV CONTRIBUTION · NO GENERATION':
+      'PV1 '+pv1Share.toFixed(0)+'% · PV2 '+pv2Share.toFixed(0)+'% OF LIVE PV POWER';
+    const miniBar='<div class="pv-share-heading">'+fmt(pvShares)+'</div>'+
+      '<div class="solar-track" role="img" aria-label="'+fmt(pvShares)+'">'+
+      '<div class="solar-fill" style="width:'+pv1Share+'%"></div>'+
+      '<div class="solar-fill secondary" style="width:'+pv2Share+'%"></div></div>';
     const markup='<style>'+
       ':host{display:block;width:100%;min-width:0;box-sizing:border-box;color:#e7f9ff;font-family:Arial,Roboto,sans-serif}'+
       '*,*::before,*::after{box-sizing:border-box}ha-card{display:block;min-width:0;width:100%;overflow:hidden;position:relative;border:1px solid #20c9ec;border-radius:17px;'+
@@ -438,7 +449,8 @@ class JarvisPowerFlowCard extends HTMLElement {
       '.batt-layout .dual{min-width:0}.hud-panel{min-width:0}.hud-head span{overflow-wrap:anywhere}'+
       '.batt-layout{display:flex;align-items:center;gap:12px}.batt-layout .dual{flex:1}.charge-dial{width:84px;height:84px;flex:none;border-radius:50%;padding:8px;background:conic-gradient(#2de5a3 var(--pct),#20374a 0);box-shadow:0 0 16px #1dda9850}'+
       '.dial-inner{border-radius:50%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#082033}.dial-inner strong{font-size:17px}.dial-inner small{font-size:7px;color:#9dd9c9;text-align:center}'+
-      '.solar-track{margin-top:10px;height:8px;overflow:hidden;border-radius:10px;background:#21364a}.solar-fill{height:100%;border-radius:10px;background:linear-gradient(90deg,#f1af32,#ffe987);box-shadow:0 0 10px #ffcc38}'+
+      '.pv-share-heading{margin-top:10px;color:#a8c6d6;font-size:9px;font-weight:700;letter-spacing:.35px}'+
+      '.solar-track{display:flex;margin-top:6px;height:9px;overflow:hidden;border-radius:10px;background:#21364a}.solar-fill{height:100%;flex:none;background:linear-gradient(90deg,#f1af32,#ffe987)}.solar-fill.secondary{background:linear-gradient(90deg,#f7944c,#e77425);box-shadow:none}'+
       '.mode{font-size:10px;letter-spacing:1px;margin-top:6px;color:var(--hud)}.diagnostic{display:flex;justify-content:space-between;gap:10px;padding:4px 0;border-bottom:1px solid #28465b;font-size:10px;line-height:1.25}.diagnostic span{color:#89b9cc}.diagnostic b{color:#eaf9ff;text-align:right}'+
       '.legend{color:#44e4ad}'+
       '@media(max-width:1050px){.systems{grid-template-columns:repeat(2,minmax(0,1fr))}}'+
