@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.10.0-alpha — Version 1 design candidate — 21 November 2026
+
+- Further developed the illustrated Sunsynk inverter with recessed cooling-vent banks, layered faceplate, fine inner instrument ring, front status display and subtle label/indicator details.
+- Improved the command-centre visual hierarchy: dedicated colour-coded status channels and a more defined illuminated header accent.
+- Added a **responsive mobile telemetry companion** beneath the SVG: solar, home, battery and grid readings remain legible when the cinematic SVG itself is reduced on narrow screens. This secondary display is hidden on desktop.
+- Kept existing real sensor values, power sign conventions, grid connection logic, battery hysteresis, Recorder history and flow animations intact.
+- Preserved the smooth 46-unit animated dash cycle validated on the previous version.
+- No inverter control, backend service, source reconstruction or simulated power data.
+- Automated source/distributable equality, JavaScript syntax and smoke/regression tests passed; live desktop/mobile browser acceptance still required before Version 1 freeze.
+
 ## v0.9.0-alpha — 21 November 2026
 
 - **Seamless energy animation:** fixed the SVG dashed flow-line loop. The pattern repeats every 23 units (8 illuminated / 15 gap); animation now travels 46 units (exactly two full patterns) instead of 50, removing the visible jump at each animation cycle.
