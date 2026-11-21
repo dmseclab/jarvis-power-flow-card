@@ -1,4 +1,4 @@
-/* JARVIS Power Flow Card v0.9.0-alpha — read-only cinematic HUD. */
+/* JARVIS Power Flow Card v0.10.0-alpha — read-only cinematic HUD. */
 const JARVIS_DEFAULTS = {
   pv1_power:"sensor.ss_pv1_power", pv2_power:"sensor.ss_pv2_power",
   battery_soc:"sensor.ss_battery_soc", battery_power:"sensor.ss_battery_power",
@@ -401,6 +401,10 @@ class JarvisPowerFlowCard extends HTMLElement {
       '.stat{padding:8px 10px;border:1px solid #2b6378;background:#091f30b8;border-radius:8px;min-width:0}'+
       '.stat small{display:block;color:#84bed1;font-size:10px;margin-bottom:3px;letter-spacing:.8px}.stat b{display:block;font-size:15px;color:#e9faff;overflow-wrap:anywhere}'+
       '.stage{width:100%;display:block;height:auto;margin-top:4px;overflow:visible}'+
+      '.stage .inverter-vents{filter:drop-shadow(0 0 3px #30bce844)}'+
+      '.mobile-readouts{display:none;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin:8px 0}'+
+      '.mobile-readout{padding:9px 10px;border:1px solid var(--node-color);border-radius:7px;background:#0b2437;min-width:0}'+
+      '.mobile-readout small{font-size:10px;color:#b1c6d5;display:block;margin-bottom:4px}.mobile-readout strong{font-size:15px;color:#f3fdff;overflow-wrap:anywhere}'+
       '.power-rail{filter:blur(3px)}.flow-tag{filter:drop-shadow(0 0 5px #0ac6ef26)}.flow-tag.flowing circle{animation:jarvisBeacon 1.6s ease-in-out infinite}'+
       '.inverter-halo{transform-origin:560px 245px;animation:jarvisOrbit 24s linear infinite}.inverter-breath{animation:jarvisBreathe 4.5s ease-in-out infinite}'+
       '@keyframes jarvisBeacon{50%{opacity:.35}}@keyframes jarvisOrbit{to{transform:rotate(360deg)}}@keyframes jarvisBreathe{50%{opacity:.35}}'+
@@ -480,8 +484,14 @@ class JarvisPowerFlowCard extends HTMLElement {
       '<path d="M455 143 H665 L704 184 V332 L665 373 H455 L416 332 V184 Z" fill="#0b3654" stroke="#3bceef" stroke-width="1.6" opacity=".45"/>'+
       '<rect x="427" y="153" width="266" height="210" rx="17" fill="url(#jarvisCasing)" stroke="#45dcfa" stroke-width="3"/>'+
       '<path d="M445 172 H675 M445 346 H675" fill="none" stroke="#5bdfff" stroke-width="1" opacity=".24"/>'+
+      '<path d="M432 184 V331 M688 184 V331" stroke="#94f1ff" stroke-width="1" opacity=".19"/>'+
+      '<rect x="447" y="199" width="34" height="92" rx="4" fill="#041929" stroke="#2a7f9d" opacity=".88"/>'+
+      '<rect x="639" y="199" width="34" height="92" rx="4" fill="#041929" stroke="#2a7f9d" opacity=".88"/>'+
+      '<path class="inverter-vents" d="M453 210 H474 M453 221 H474 M453 232 H474 M453 243 H474 M453 254 H474 M453 265 H474 M453 276 H474 M645 210 H666 M645 221 H666 M645 232 H666 M645 243 H666 M645 254 H666 M645 265 H666 M645 276 H666" stroke="#43b9d9" stroke-width="2" opacity=".62"/>'+
+      '<path d="M486 202 H504 M617 202 H635 M486 285 H504 M617 285 H635" stroke="#5bdfff" stroke-width="2" opacity=".38"/>'+
       '<rect x="438" y="164" width="244" height="188" rx="10" fill="none" stroke="#66dfff" opacity=".25"/>'+
       '<circle cx="560" cy="245" r="49" stroke="#40dffc" fill="#0e2942" stroke-width="3"/>'+
+      '<circle cx="560" cy="245" r="42" stroke="#2e7593" fill="none" stroke-width="1.5" opacity=".55"/>'+
       '<path d="M570 201 L530 259 H558 L547 291 L599 229 H566 Z" fill="#8ceefe"/>'+
       '<path d="M448 176 H465 M655 176 H670 M445 333 H466 M653 333 H672" stroke="#56dfff" stroke-width="3" opacity=".75"/>'+
       '<circle cx="560" cy="245" r="61" stroke="#44dafa" stroke-dasharray="4 12" fill="none" opacity=".45" class="inverter-halo"/>'+
@@ -491,6 +501,7 @@ class JarvisPowerFlowCard extends HTMLElement {
       '<path d="M514 306 H606" stroke="#3ecfff" stroke-width="2" opacity=".35"/>'+
 
       cap(477,184,"03 / INVERTER","#8eeaff")+
+      '<rect x="499" y="301" width="122" height="42" rx="7" fill="#061a2c" stroke="#26708b" stroke-width="1.2"/>'+
       '<rect x="514" y="308" width="92" height="30" rx="6" fill="#051c30" stroke="#236781" stroke-width="1"/>'+
       '<circle cx="525" cy="323" r="4" fill="'+(isAvailable?'#34efb5':'#fba36e')+'" class="inverter-breath"/>'+
       '<text x="562" y="329" fill="#c9f6ff" text-anchor="middle" font-size="15" font-weight="700">'+fmt(this.status("inverter_status"))+'</text>'+
