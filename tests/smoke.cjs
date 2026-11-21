@@ -215,6 +215,31 @@ assert.equal(stable.grid,'idle','opposite grid sign near zero must not appear ac
 stable=card.flowState(0,1000,70,-80);
 assert.equal(stable.battery,'discharging','strong reverse battery flow activates');
 assert.equal(stable.grid,'exporting','strong reverse grid flow activates');
+// Solar contribution bar must never pretend an arbitrary 10 kW rating.
+card.setConfig({battery_positive_is_discharge:true,grid_positive_is_import:true});
+card.hass={states:{
+  'sensor.ss_pv1_power':{state:'245',attributes:{unit_of_measurement:'W'}},
+  'sensor.ss_pv2_power':{state:'218',attributes:{unit_of_measurement:'W'}},
+  'sensor.ss_load_power':{state:'1000',attributes:{unit_of_measurement:'W'}},
+  'sensor.ss_battery_soc':{state:'99',attributes:{unit_of_measurement:'%'}},
+  'sensor.ss_battery_power':{state:'0',attributes:{unit_of_measurement:'W'}},
+  'sensor.ss_grid_ct_power':{state:'500',attributes:{unit_of_measurement:'W'}}
+}};
+let solarVisual=card.shadowRoot.innerHTML;
+assert.ok(solarVisual.includes('PV1 53% · PV2 47% OF LIVE PV POWER'));
+assert.ok(solarVisual.includes('class="solar-fill secondary"'),'both PV shares visible');
+assert.ok(!solarVisual.includes('10000'),'no arbitrary 10 kW rated power');
+card.hass={states:{
+  ...card._hass.states,
+  'sensor.ss_pv1_power':{state:'0',attributes:{unit_of_measurement:'W'}},
+  'sensor.ss_pv2_power':{state:'0',attributes:{unit_of_measurement:'W'}}
+}};
+assert.ok(card.shadowRoot.innerHTML.includes('PV CONTRIBUTION · NO GENERATION'));
+card.hass={states:{
+  ...card._hass.states,
+  'sensor.ss_pv2_power':{state:'unavailable',attributes:{unit_of_measurement:'W'}}
+}};
+assert.ok(card.shadowRoot.innerHTML.includes('PV CONTRIBUTION · DATA UNAVAILABLE'));
 // v0.10: preserve live power readouts and protect narrow-screen usability.
 card.setConfig({battery_positive_is_discharge:true,grid_positive_is_import:true});
 card.hass={states:{
