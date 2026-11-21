@@ -1,4 +1,4 @@
-/* JARVIS Power Flow Card v0.10.0-alpha — read-only cinematic HUD. */
+/* JARVIS Power Flow Card v0.11.0-alpha — read-only cinematic HUD. */
 const JARVIS_DEFAULTS = {
   pv1_power:"sensor.ss_pv1_power", pv2_power:"sensor.ss_pv2_power",
   battery_soc:"sensor.ss_battery_soc", battery_power:"sensor.ss_battery_power",
@@ -355,11 +355,12 @@ class JarvisPowerFlowCard extends HTMLElement {
       '<path d="'+d+'" fill="none" stroke="'+color+'" stroke-width="2" opacity=".5"/>'+
       '<path d="'+d+'" fill="none" stroke="'+color+
       '" stroke-width="4" class="wire '+(on?'on':'')+(reverse?' reverse':'')+'"/>';
-    const flowTag=(x,y,label,value,color,active)=>'<g class="flow-tag'+(active?' flowing':'')+'">'+
-      '<rect x="'+x+'" y="'+y+'" width="134" height="35" rx="7" fill="#071c2c" stroke="'+color+
-      '" stroke-width="1.3" opacity=".97"/><circle cx="'+(x+11)+'" cy="'+(y+11)+'" r="3.4" fill="'+color+'"/>'+
-      '<text x="'+(x+20)+'" y="'+(y+15)+'" fill="'+color+'" font-size="9" font-weight="700" letter-spacing=".7">'+fmt(label)+'</text>'+
-      '<text x="'+(x+11)+'" y="'+(y+29)+'" fill="#e7f9ff" font-size="12" font-weight="700">'+fmt(value)+'</text></g>';
+    // The main nodes own numeric power. These smaller labels communicate direction
+    // only, avoiding duplicated wattage throughout the power-flow scene.
+    const flowTag=(x,y,label,color,active)=>'<g class="flow-tag'+(active?' flowing':'')+'">'+
+      '<rect x="'+x+'" y="'+y+'" width="146" height="26" rx="7" fill="#071c2c" stroke="'+color+
+      '" stroke-width="1.3" opacity=".97"/><circle cx="'+(x+11)+'" cy="'+(y+13)+'" r="3.4" fill="'+color+'"/>'+
+      '<text x="'+(x+21)+'" y="'+(y+17)+'" fill="'+color+'" font-size="10" font-weight="700" letter-spacing=".55">'+fmt(label)+'</text></g>';
     const solarOn=flows.solar==="generating",homeOn=flows.home==="supplied";
     const gridOn=flows.gridEnabled,battOn=flows.batteryEnabled;
     const gridReverse=flows.gridReverse,battReverse=flows.batteryReverse;
@@ -433,7 +434,7 @@ class JarvisPowerFlowCard extends HTMLElement {
       '.foot{display:flex;flex-wrap:wrap;gap:6px 14px;justify-content:space-between;color:#89b9c8;font-size:10px;line-height:1.5;margin-top:12px;padding-right:8px}'+
       '.command-line{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:9px 0 0;font-size:10px;color:#80bdd4;letter-spacing:1.5px}'+
       '.command-line:after{content:"";flex:1;height:1px;background:linear-gradient(90deg,#28def5aa,transparent)}'+
-      '.systems{display:grid;grid-template-columns:1.05fr 1.05fr 1fr 1fr;gap:10px;margin-top:12px;align-items:stretch}'+
+      '.systems{display:grid;grid-template-columns:1.05fr 1.05fr 1fr 1fr;gap:10px;margin-top:12px;align-items:start}'+
       '.hud-panel{min-width:0;border:1px solid color-mix(in srgb,var(--hud) 65%,#14304a);border-radius:10px;overflow:hidden;background:linear-gradient(135deg,#0b2336,#061421);box-shadow:inset 0 0 22px #11b7ed0b}'+
       '.hud-head{padding:9px 11px;border-bottom:1px solid color-mix(in srgb,var(--hud) 35%,#183449);box-shadow:inset 3px 0 var(--hud);display:flex;justify-content:space-between;gap:8px;align-items:center}'+
       '.hud-head span{color:var(--hud);font-size:12px;letter-spacing:.8px;font-weight:700}.hud-head small{color:#85a9be;font-size:9px;text-align:right}'+
@@ -486,10 +487,10 @@ class JarvisPowerFlowCard extends HTMLElement {
       wire("M692 205 L842 143","#44bfff",homeOn)+
       wire("M428 302 L279 381","#32e99e",battOn,battReverse)+
       wire("M842 381 L692 302","#fb6c80",gridOn,gridReverse)+
-      flowTag(310,113,"PV GENERATION",this.powerText(solar),"#ffd052",solarOn)+
-      flowTag(708,113,"HOME DEMAND",this.powerText(home),"#70c8ff",homeOn)+
-      flowTag(310,350,flowBatteryCaption,this.powerText(battery),"#35eea4",battOn)+
-      flowTag(708,350,flowGridCaption,this.powerText(grid),"#ff718d",gridOn)+
+      flowTag(310,120,solarOn?"SOLAR TO INVERTER":"SOLAR IDLE","#ffd052",solarOn)+
+      flowTag(708,120,homeOn?"INVERTER TO HOME":"HOME IDLE","#70c8ff",homeOn)+
+      flowTag(310,355,flowBatteryCaption,"#35eea4",battOn)+
+      flowTag(708,355,flowGridCaption,"#ff718d",gridOn)+
       '<g><rect x="45" y="76" width="238" height="165" rx="12" fill="url(#jarvisBg)" stroke="#f6c33e" stroke-width="2"/>'+
       '<path d="M94 128 L195 103 L232 163 L130 185 Z M127 121 L159 175 M160 113 L192 167 M193 105 L225 159 M110 155 L216 128" stroke="#f4c13c" stroke-width="4" fill="none"/>'+
       cap(64,206,"01 / SOLAR","#f5c848")+txt(64,231,this.powerText(solar),22)+
@@ -569,7 +570,7 @@ class JarvisPowerFlowCard extends HTMLElement {
       metric("HOME TODAY",this.energy("day_load_energy"),"#42bfff")+
       metric("GRID IMPORT TODAY",this.energy("day_grid_import"),"#fd8096")+
       metric("GRID EXPORT TODAY",this.energy("day_grid_export"),"#36e7a2")+
-      '</div><div class="foot"><span class="legend">● POWER FLOW · LOCAL HOME ASSISTANT DATA</span><span>'+
+      '</div><div class="foot"><span class="legend">● POWER FLOW · LOCAL HOME ASSISTANT DATA · JARVIS v0.11.0-alpha</span><span>'+
       'Battery '+fmt(flows.battery)+' ('+fmt(current===null?'—':current.toFixed(1)+' A')+')'+
       ' · Grid '+fmt(flows.grid)+(flows.grid==="unverified"?' · SET GRID POLARITY AFTER CHECK':'')+
       '</span></div></div></ha-card>';
