@@ -52,3 +52,11 @@ The card now renders four integrated intelligence modules below the SVG power-fl
 The outer HUD uses its own card padding and responsive CSS at 1050 and 650 px breakpoints. No forecast or historical plot is invented when source data is absent. All values come from existing entity mappings and no control services are called.
 
 **Operator acceptance pending:** check HACS redownload, desktop/mobile layout, source values, circular SOC dial, and normal charging/import transitions. Keep `main` as alpha working branch until v1 approval.
+
+## v0.5.0-alpha: independent grid connection & data sanity
+
+- An optional binary sensor `grid_connected` (mapped to `binary_sensor.ss_grid_connected` for this Sunsynk installation) reports **CONNECTED / DISCONNECTED / UNKNOWN** independently of signed grid CT power. A connected idle grid is not described as importing.
+- A nonblocking `batteryPlausibility` comparison checks absolute battery power against absolute voltage × current when all three sources are numeric and sufficiently large. An advisory `CHECK P / V / I` is shown when the mismatch exceeds the display heuristic. It is **not** a hardware alarm, and it does not substitute/reconstruct power values, calculate new energy totals, or change the charging direction.
+- Because inverter sensor definitions, sampling times and sign conventions may differ, this advisory requires manual comparison with raw Sunsynk entities before any conclusion.
+- Numerical presence and approximate plausibility are separate indicators. The existing `ALL CHANNELS PRESENT` label only means numeric inputs were returned.
+- No Home Assistant service calls, inverter control, schedule modification or backend integration are included.
