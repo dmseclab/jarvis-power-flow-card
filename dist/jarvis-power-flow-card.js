@@ -1,4 +1,4 @@
-/* JARVIS Power Flow Card v0.5.0-alpha — read-only cinematic HUD. */
+/* JARVIS Power Flow Card v0.6.0-alpha — read-only cinematic HUD. */
 const JARVIS_DEFAULTS = {
   pv1_power:"sensor.ss_pv1_power", pv2_power:"sensor.ss_pv2_power",
   battery_soc:"sensor.ss_battery_soc", battery_power:"sensor.ss_battery_power",
@@ -19,13 +19,134 @@ class JarvisPowerFlowCard extends HTMLElement {
     this.cfg = {
       title:"J.A.R.V.I.S.", subtitle:"SMART ENERGY COMMAND CENTRE",
       minimum_flow_w:40, grid_positive_is_import:null,
-      battery_positive_is_discharge:null, ...config,
+      battery_positive_is_discharge:null, show_history:true, history_refresh_minutes:15, ...config,
       entities:{...JARVIS_DEFAULTS,...(config.entities || {})}
     };
     if (!this.shadowRoot) this.attachShadow({mode:"open"});
     this.render();
   }
-  set hass(hass) { this._hass=hass; if (this.cfg) this.render(); }
+  set hass(hass) {
+    this._hass=hass;
+    if (this.cfg) this.render();
+    this.maybeLoadHistory();
+  }
+  connectedCallback() { this.maybeLoadHistory(); }
+  historyKeys() { return ["pv1_power","pv2_power","load_power","grid_power","battery_power"]; }
+  maybeLoadHistory() {
+    if (!this.isConnected || !this.cfg || this.cfg.show_history===false || !this._hass?.callApi) return;
+    const ids=this.historyKeys().map(key=>this.cfg.entities[key]).filter(id=>typeof id==="string" && id.length);
+    const signature=ids.join(",");
+    if (signature!==this._historySignature) {
+      this._historySignature=signature;
+      this._historyData={};
+      this._historyLastAttempt=0;
+    }
+    const now=Date.now();
+    const interval=Math.max(300000,Number(this.cfg.history_refresh_minutes||15)*60000);
+    if (this._historyLoading || now-(this._historyLastAttempt||0)<interval) return;
+    this._historyLastAttempt=now;
+    this._historyLoading=true;
+    this._historyStatus="LOADING RECORDED HISTORY";
+    this.loadHistory(ids).then(()=>{
+      this._historyStatus=Object.values(this._historyData||{}).some(rows=>rows.length)?"RECORDED HISTORY":"NO RECORDED HISTORY";
+    }).catch(()=>{
+      this._historyStatus="HISTORY UNAVAILABLE";
+    }).finally(()=>{
+      this._historyLoading=false;
+      if (this.cfg && this.isConnected) this.render();
+    });
+  }
+  async loadHistory(ids) {
+    if (!ids.length) { this._historyData={}; return; }
+    const end=new Date(), start=new Date(end.getTime()-24*3600000);
+    // Home Assistant's authenticated frontend API; never sends tokens elsewhere.
+    const url="history/period/"+encodeURIComponent(start.toISOString())+
+      "?filter_entity_id="+ids.map(encodeURIComponent).join(",")+
+      "&end_time="+encodeURIComponent(end.toISOString())+"&minimal_response&no_attributes";
+    const response=await this._hass.callApi("GET",url);
+    if (!Array.isArray(response)) throw new Error("History API returned invalid payload");
+    const parsed={};
+    response.forEach((series,index)=>{
+      if (!Array.isArray(series) || !series.length) return;
+      const id=series[0].entity_id || (response.length===ids.length?ids[index]:null);
+      if (!id || !ids.includes(id)) return;
+      parsed[id]=series.map(point=>({
+        time:Date.parse(point.last_changed||point.last_updated||""),
+        value:point.state===null||point.state===undefined||point.state===""?NaN:Number(point.state)
+      })).filter(point=>Number.isFinite(point.time) &&
+        point.time>=start.getTime() && point.time<=end.getTime() &&
+        Number.isFinite(point.value) &&
+        point.value>=-1000000 && point.value<=1000000);
+    });
+    this._historyData=parsed;
+    this._historyStart=start.getTime();
+    this._historyEnd=end.getTime();
+  }
+  historyMarkup() {
+    const keys=this.historyKeys(), data=this._historyData||{};
+    const palette=["#ffc747","#f8a45a","#55baff","#fa7086","#32e6a1"];
+    const titles=["PV1","PV2","HOUSE","GRID","BATTERY"];
+    const all=[];
+    const series=keys.map((key,index)=>{
+      const id=this.cfg.entities[key], unit=this.entity(key)?.attributes?.unit_of_measurement;
+      const factor=unit==="kW"?1000:1;
+      const points=(data[id]||[]).map(p=>({time:p.time,value:p.value*factor}));
+      points.forEach(p=>all.push(p.value));
+      return {key,title:titles[index],color:palette[index],points};
+    });
+    const keyHtml=series.map(s=>'<span style="color:'+s.color+'">● '+s.title+'</span>').join("");
+    if (!all.length) return '<div class="history-empty">'+jEsc(this._historyStatus||"WAITING FOR HISTORY")+
+      '<small>Requires Home Assistant Recorder history for these power sensors</small></div><div class="history-legend">'+keyHtml+'</div>';
+    let low=0,high=0;
+    for(const value of all){if(value<low)low=value;if(value>high)high=value;}
+    const min=low===high?low-100:low, max=low===high?high+100:high;
+    const width=1060,height=215,left=67,right=1037,top=16,bottom=183;
+    const xmin=this._historyStart || Date.now()-86400000;
+    const xmax=this._historyEnd || Date.now();
+    const x=t=>left+(t-xmin)/(xmax-xmin)*(right-left);
+    const y=v=>top+(max-v)/(max-min)*(bottom-top);
+    const fmtV=v=>Math.abs(v)>=1000?(v/1000).toFixed(1)+"k":Math.round(v)+"";
+    const axes=[0,.5,1].map(r=>{
+      const val=min+r*(max-min), yy=y(val);
+      return '<line x1="'+left+'" x2="'+right+'" y1="'+yy.toFixed(1)+'" y2="'+yy.toFixed(1)+
+        '" stroke="#315069" stroke-width="1"/><text x="59" y="'+(yy+4).toFixed(1)+
+        '" text-anchor="end" fill="#8fbbcc" font-size="13">'+jEsc(fmtV(val))+'</text>';
+    }).join("");
+    const paths=series.map(s=>{
+      // Limit SVG point density; retain the first and last sample for each slice.
+      // Broken recorder intervals are not bridged with invented samples.
+      let chunks=[],run=[],prev=null;
+      for(const p of s.points){
+        if(prev!==null && p.time-prev>45*60000){if(run.length)chunks.push(run);run=[];}
+        run.push(p);prev=p.time;
+      }
+      if(run.length)chunks.push(run);
+      return chunks.map(group=>{
+        const maxPoints=420;
+        if(group.length>maxPoints){
+          const step=Math.ceil(group.length/maxPoints),reduced=[];
+          for(let k=0;k<group.length;k+=step) reduced.push(group[k]);
+          if(reduced[reduced.length-1]!==group[group.length-1]) reduced.push(group[group.length-1]);
+          group=reduced;
+        }
+        return group.length>1?'<polyline fill="none" stroke="'+s.color+
+        '" stroke-width="2" opacity=".95" vector-effect="non-scaling-stroke" points="'+
+        group.map(p=>x(p.time).toFixed(1)+','+y(p.value).toFixed(1)).join(' ')+'"/>':
+        '<circle cx="'+x(group[0].time).toFixed(1)+'" cy="'+y(group[0].value).toFixed(1)+
+        '" r="2.5" fill="'+s.color+'"/>';
+      }).join("");
+    }).join("");
+    const tick=Array.from({length:5},(_,i)=>{
+      const t=xmin+(xmax-xmin)*i/4;
+      const label=new Intl.DateTimeFormat(undefined,{hour:"2-digit",minute:"2-digit"}).format(new Date(t));
+      return '<text x="'+x(t).toFixed(1)+'" y="205" text-anchor="middle" fill="#8fb1c5" font-size="13">'+
+        jEsc(label)+'</text>';
+    }).join("");
+    return '<svg class="history-svg" viewBox="0 0 1060 215" role="img" aria-label="Last 24 hours of recorded power data">'+
+      axes+'<line x1="'+left+'" x2="'+right+'" y1="'+y(0).toFixed(1)+'" y2="'+y(0).toFixed(1)+
+      '" stroke="#70b7ce" stroke-width="1.5" stroke-dasharray="5 6"/>'+
+      paths+tick+'</svg><div class="history-legend">'+keyHtml+'</div>';
+  }
   getCardSize() { return 7; }
   getGridOptions() { return {columns:12,rows:7,min_columns:6,min_rows:5}; }
   entity(key) { return this._hass?.states?.[this.cfg.entities[key]]; }
@@ -246,6 +367,14 @@ class JarvisPowerFlowCard extends HTMLElement {
       '.hud-head span{color:var(--hud);font-size:12px;letter-spacing:.8px;font-weight:700}.hud-head small{color:#85a9be;font-size:9px;text-align:right}'+
       '.hud-body{padding:12px;min-width:0}.dual{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.readout{min-width:0;padding:7px 9px;background:#102c403d;border:1px solid #20435a;border-radius:6px}'+
       '.readout small{display:block;color:#8fbbd0;font-size:10px}.readout strong{display:block;margin-top:3px;color:#effcff;font-size:15px;overflow-wrap:anywhere}'+
+      '.history-panel{border:1px solid #2789a6;border-radius:10px;padding:12px 17px;margin-top:12px;background:linear-gradient(160deg,#092b40,#061526);box-shadow:inset 0 0 18px #19cbff15}'+
+      '.history-heading{display:flex;justify-content:space-between;gap:10px;align-items:center;color:#a0eaff;font-size:12px;letter-spacing:1.3px;font-weight:700}'+
+      '.history-heading small{font-size:10px;color:#7facbf;letter-spacing:0;font-weight:400}'+
+      '.history-svg{width:100%;max-height:220px;display:block;margin-top:7px}'+
+      '.history-empty{min-height:110px;display:flex;flex-direction:column;gap:9px;align-items:center;justify-content:center;color:#94bfd4;font-size:13px}'+
+      '.history-empty small{font-size:10px;color:#79a4bc}.history-legend{display:flex;justify-content:center;flex-wrap:wrap;gap:15px;font-size:11px;margin-top:3px}'+
+      '.readout strong{font-size:14px!important;line-height:1.15;overflow-wrap:normal;word-break:normal}.readout small{font-size:9px!important}'+
+      '.batt-layout .dual{min-width:0}.hud-panel{min-width:0}.hud-head span{overflow-wrap:anywhere}'+
       '.batt-layout{display:flex;align-items:center;gap:12px}.batt-layout .dual{flex:1}.charge-dial{width:84px;height:84px;flex:none;border-radius:50%;padding:8px;background:conic-gradient(#2de5a3 var(--pct),#20374a 0);box-shadow:0 0 16px #1dda9850}'+
       '.dial-inner{border-radius:50%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#082033}.dial-inner strong{font-size:17px}.dial-inner small{font-size:7px;color:#9dd9c9;text-align:center}'+
       '.solar-track{margin-top:10px;height:8px;overflow:hidden;border-radius:10px;background:#21364a}.solar-fill{height:100%;border-radius:10px;background:linear-gradient(90deg,#f1af32,#ffe987);box-shadow:0 0 10px #ffcc38}'+
@@ -286,6 +415,9 @@ class JarvisPowerFlowCard extends HTMLElement {
       '<rect x="438" y="164" width="244" height="188" rx="10" fill="none" stroke="#66dfff" opacity=".25"/>'+
       '<circle cx="560" cy="245" r="49" stroke="#40dffc" fill="#0e2942" stroke-width="3"/>'+
       '<path d="M570 201 L530 259 H558 L547 291 L599 229 H566 Z" fill="#8ceefe"/>'+
+      '<path d="M448 176 H465 M655 176 H670 M445 333 H466 M653 333 H672" stroke="#56dfff" stroke-width="3" opacity=".75"/>'+
+      '<circle cx="560" cy="245" r="61" stroke="#44dafa" stroke-dasharray="4 12" fill="none" opacity=".45"/>'+
+      '<path d="M463 291 H482 M638 291 H658 M473 300 H647" stroke="#3bb9dd" stroke-width="2" opacity=".35"/>'+
       cap(477,184,"03 / INVERTER","#8eeaff")+
       '<text x="560" y="325" fill="#c9f6ff" text-anchor="middle" font-size="19">'+fmt(this.status("inverter_status"))+'</text>'+
       '<rect x="45" y="302" width="239" height="165" rx="12" fill="url(#jarvisBg)" stroke="#36e4a4" stroke-width="2"/>'+
@@ -322,7 +454,8 @@ class JarvisPowerFlowCard extends HTMLElement {
         '<div class="diagnostic"><span>Grid connected</span><b>'+fmt(connection)+'</b></div>'+
         '<div class="diagnostic"><span>Battery P / V / I</span><b>'+fmt(plausibility.label)+'</b></div>'+
         '<div class="diagnostic"><span>Daily consumption</span><b>'+fmt(this.energy('day_load_energy'))+'</b></div>')+
-      '</div><div class="metrics">'+
+      '</div>'+(this.cfg.show_history===false?'':'<section class="history-panel"><div class="history-heading"><span>10 // ENERGY HISTORY · LAST 24 HOURS</span><small>'+fmt(this._historyStatus||"RECORDED SENSOR VALUES")+'</small></div>'+this.historyMarkup()+'</section>')+
+      '<div class="metrics">'+
       metric("SOLAR TODAY",this.energy("day_pv_energy"),"#f8c54a")+
       metric("HOME TODAY",this.energy("day_load_energy"),"#42bfff")+
       metric("GRID IMPORT TODAY",this.energy("day_grid_import"),"#fd8096")+
