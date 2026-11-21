@@ -1,4 +1,4 @@
-/* JARVIS Power Flow Card v0.8.0-alpha — read-only cinematic HUD. */
+/* JARVIS Power Flow Card v0.9.0-alpha — read-only cinematic HUD. */
 const JARVIS_DEFAULTS = {
   pv1_power:"sensor.ss_pv1_power", pv2_power:"sensor.ss_pv2_power",
   battery_soc:"sensor.ss_battery_soc", battery_power:"sensor.ss_battery_power",
@@ -22,6 +22,7 @@ class JarvisPowerFlowCard extends HTMLElement {
       battery_positive_is_discharge:null, show_history:true, history_refresh_minutes:15, ...config,
       entities:{...JARVIS_DEFAULTS,...(config.entities || {})}
     };
+    this._flowLatches={};
     if (!this.shadowRoot) this.attachShadow({mode:"open"});
     this.render();
   }
@@ -182,10 +183,25 @@ class JarvisPowerFlowCard extends HTMLElement {
     const batterySign=this.cfg.battery_positive_is_discharge;
     const gridSign=this.cfg.grid_positive_is_import;
     const active=v=>v!==null && Math.abs(v)>t;
-    const batteryMode=!active(battery) ? (battery===null?"unknown":"idle") :
+    // Hysteresis prevents a repeating 39/40/41 W sample from restarting a flow.
+    // A new connection starts above the higher threshold and remains active
+    // until it falls below the lower one. Sign reversal is immediate.
+    const modes=this._flowLatches||(this._flowLatches={});
+    const gate=(key,value)=>{
+      if(value===null || !Number.isFinite(value)){modes[key]=false;return false;}
+      const previous=modes[key]||false;
+      const on=Math.max(t+15,t*1.5);
+      const off=Math.max(0,t-15);
+      const next=Math.abs(value)>(previous?off:on);
+      modes[key]=next;
+      return next;
+    };
+    const batteryActive=gate("battery",battery);
+    const gridActive=gate("grid",grid);
+    const batteryMode=!batteryActive ? (battery===null?"unknown":"idle") :
       typeof batterySign!=="boolean" ? "unverified" :
       (batterySign ? battery>0 : battery<0) ? "discharging" : "charging";
-    const gridMode=!active(grid) ? (grid===null?"unknown":"idle") :
+    const gridMode=!gridActive ? (grid===null?"unknown":"idle") :
       typeof gridSign!=="boolean" ? "unverified" :
       (gridSign ? grid>0 : grid<0) ? "importing" : "exporting";
     return {
@@ -386,8 +402,8 @@ class JarvisPowerFlowCard extends HTMLElement {
       '.power-rail{filter:blur(3px)}.flow-tag{filter:drop-shadow(0 0 5px #0ac6ef26)}.flow-tag.flowing circle{animation:jarvisBeacon 1.6s ease-in-out infinite}'+
       '.inverter-halo{transform-origin:560px 245px;animation:jarvisOrbit 24s linear infinite}.inverter-breath{animation:jarvisBreathe 4.5s ease-in-out infinite}'+
       '@keyframes jarvisBeacon{50%{opacity:.35}}@keyframes jarvisOrbit{to{transform:rotate(360deg)}}@keyframes jarvisBreathe{50%{opacity:.35}}'+
-      '.wire{stroke-dasharray:10 15;opacity:.17}.wire.on{opacity:1;stroke-dasharray:8 15;stroke-width:4;filter:drop-shadow(0 0 5px currentColor);animation:jflow 1.4s linear infinite}'+
-      '.wire.reverse{animation-direction:reverse}@keyframes jflow{to{stroke-dashoffset:-50}}'+
+      '.wire{stroke-dasharray:8 15;opacity:.17}.wire.on{opacity:1;stroke-width:4;filter:drop-shadow(0 0 5px currentColor);animation:jflow 1.6s linear infinite}'+
+      '.wire.reverse{animation-direction:reverse}@keyframes jflow{to{stroke-dashoffset:-46}}'+
       '.stage{filter:drop-shadow(0 0 7px #11c5f51a)}.hud-panel{position:relative}.hud-panel:before{content:"";position:absolute;right:5px;top:5px;width:20px;height:20px;border-right:1px solid var(--hud);border-top:1px solid var(--hud);opacity:.55;pointer-events:none}'+
       '.energy-trace{fill:none;stroke:#4cdafa;stroke-width:1.5;opacity:.35}.hud-filigree{fill:none;stroke:#36ddff;stroke-width:2;opacity:.48}'+
       '.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin-top:3px}'+
