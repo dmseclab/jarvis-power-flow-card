@@ -163,7 +163,7 @@ card.hass={states:{
   'sensor.ss_pv1_power':{state:'354',attributes:{unit_of_measurement:'W'}},
   'sensor.ss_pv2_power':{state:'330',attributes:{unit_of_measurement:'W'}},
   'sensor.ss_load_power':{state:'2070',attributes:{unit_of_measurement:'W'}},
-  'sensor.ss_battery_power':{state:'-53',attributes:{unit_of_measurement:'W'}},
+  'sensor.ss_battery_power':{state:'-85',attributes:{unit_of_measurement:'W'}},
   'sensor.ss_battery_voltage':{state:'55.8',attributes:{unit_of_measurement:'V'}},
   'sensor.ss_battery_current':{state:'-0.9',attributes:{unit_of_measurement:'A'}},
   'sensor.ss_battery_soc':{state:'100',attributes:{unit_of_measurement:'%'}},
@@ -186,6 +186,35 @@ cinematic=card.shadowRoot.innerHTML;
 assert.ok(cinematic.includes('TO INVERTER'), 'discharging label follows power sign');
 assert.ok(cinematic.includes('INVERTER TO GRID'), 'export label follows configured grid sign');
 assert.ok(cinematic.includes('wire on reverse'), 'directional wiring remains enabled');
+// v0.9: dash-loop distance must be exactly two full 8+15 pixel patterns.
+assert.ok(cinematic.includes('stroke-dasharray:8 15'), 'dash pattern remains 23 units');
+assert.ok(cinematic.includes('stroke-dashoffset:-46'), 'loop boundary is seamless');
+assert.ok(!cinematic.includes('stroke-dashoffset:-50'), 'old jump is removed');
+// A 40 W threshold uses 60 W activation and 25 W release.
+// Adjacent 39/40/41 W samples must not flicker the connection.
+card.setConfig({minimum_flow_w:40,battery_positive_is_discharge:true,grid_positive_is_import:true});
+let stable=card.flowState(0,1000,-39,41);
+assert.equal(stable.battery,'idle');
+assert.equal(stable.grid,'idle');
+stable=card.flowState(0,1000,-40,40);
+assert.equal(stable.battery,'idle');
+stable=card.flowState(0,1000,-65,70);
+assert.equal(stable.battery,'charging');
+assert.equal(stable.grid,'importing');
+stable=card.flowState(0,1000,-38,41);
+assert.equal(stable.battery,'charging','active charge remains latched around threshold');
+assert.equal(stable.grid,'importing','active import remains latched around threshold');
+stable=card.flowState(0,1000,-24,24);
+assert.equal(stable.battery,'idle','battery drops out below release threshold');
+assert.equal(stable.grid,'idle','grid drops out below release threshold');
+stable=card.flowState(0,1000,-65,70);
+assert.equal(stable.battery,'charging');
+stable=card.flowState(0,1000,30,-30);
+assert.equal(stable.battery,'idle','opposite sign near zero must not appear active');
+assert.equal(stable.grid,'idle','opposite grid sign near zero must not appear active');
+stable=card.flowState(0,1000,70,-80);
+assert.equal(stable.battery,'discharging','strong reverse battery flow activates');
+assert.equal(stable.grid,'exporting','strong reverse grid flow activates');
 // v0.7: rounded engineering kW scale must cover all observed values.
 let axis=card.historyBounds([-7100,415,8000]);
 assert.ok(axis.min<=-7100 && axis.max>=8000, 'axis includes signed extrema');
